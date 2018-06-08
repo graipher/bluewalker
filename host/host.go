@@ -203,6 +203,64 @@ func (h *Host) Init() error {
 	return nil
 }
 
+//StartScanning will start scanning for Bluetooth LE Advertisements
+//Active defines if active or passive scanning should be done
+func (h *Host) StartScanning(active bool) error {
+
+	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanParameters}
+	// See Bluetooth v5.0, vol 2, part E, ch 7.8.10
+	parameters := make([]byte, 7)
+	if active {
+		// active scanning
+		parameters[0] = 0x01
+	}
+	// Scan interval
+	binary.LittleEndian.PutUint16(parameters[1:], 0x0010)
+	// Scan window
+	binary.LittleEndian.PutUint16(parameters[3:], 0x0010)
+	// Own address type, public
+	parameters[5] = 0x00
+	// Filter policy
+	parameters[6] = 0x00
+	cmd.Parameters(parameters)
+
+	log.Printf("Setting scan parameters")
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to set Scan Parameters: %s", err.Error())
+	}
+
+	cmd = hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
+	// See Bluetooth v5.0, vol 2, part E, ch 7.8.11
+	parameters = make([]byte, 2)
+	// Scan enable
+	parameters[0] = 0x01
+	// Filter duplicates
+	parameters[1] = 0x00
+	cmd.Parameters(parameters)
+
+	log.Printf("Starting scan")
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to start scanning: %s", err.Error())
+	}
+	return nil
+}
+
+//StopScanning stops scanning for advertising LE devices
+func (h *Host) StopScanning() error {
+
+	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
+	parameters := make([]byte, 2)
+	// Scan enable
+	parameters[0] = 0x00
+	// filter duplicates
+	parameters[1] = 0x00
+	cmd.Parameters(parameters)
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to stop scanning: %s", err.Error())
+	}
+	return nil
+}
+
 // Deinit will deinitialize Host
 func (h *Host) Deinit() {
 	log.Printf("Deinitializing host")

@@ -9,11 +9,11 @@ import (
 // EventCode identifies the HCI Event received
 type EventCode byte
 
+// Event codes for incoming HCI events
 const (
-	//EventCodeCommandComplete is event code for CommandComplete event
 	EventCodeCommandComplete EventCode = 0x0e
-	// EventCodeCommandStatus is event code for Command Status event
-	EventCodeCommandStatus EventCode = 0x0f
+	EventCodeCommandStatus   EventCode = 0x0f
+	EventCodeLeMeta          EventCode = 0x3e
 )
 
 func (evt EventCode) String() string {
@@ -22,6 +22,8 @@ func (evt EventCode) String() string {
 		return "Command Complete"
 	case EventCodeCommandStatus:
 		return "Command Status"
+	case EventCodeLeMeta:
+		return "LE Meta Event"
 	default:
 		return fmt.Sprintf("Unknown event 0x%.2x", int(evt))
 	}

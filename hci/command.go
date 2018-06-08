@@ -9,15 +9,14 @@ import (
 // See Bluetooth 5.0 vol 2, part E, ch 5.4.1
 type CommandOpCode uint16
 
+// Opcodes for HCI Commands
 const (
-	// CommandReset : HCI Reset command
-	CommandReset CommandOpCode = 0x0c03
-	// CommandSetEventMask : Set Event mask command
-	CommandSetEventMask CommandOpCode = 0x0c01
-	// CommandWriteLeHostSupported : Set LE Host supported command
+	CommandReset                CommandOpCode = 0x0c03
+	CommandSetEventMask         CommandOpCode = 0x0c01
 	CommandWriteLeHostSupported CommandOpCode = 0x0c6d
-	// CommandLeSetEventMask : Set LE Event mask command
-	CommandLeSetEventMask CommandOpCode = 0x2001
+	CommandLeSetEventMask       CommandOpCode = 0x2001
+	CommandLeSetScanParameters  CommandOpCode = 0x200b
+	CommandLeSetScanEnable      CommandOpCode = 0x200c
 )
 
 func (op CommandOpCode) String() string {
@@ -30,6 +29,10 @@ func (op CommandOpCode) String() string {
 		return "Set Event Mask"
 	case CommandWriteLeHostSupported:
 		return "Write LE Host Supported"
+	case CommandLeSetScanParameters:
+		return "LE Set Scan Parameters"
+	case CommandLeSetScanEnable:
+		return "LE Set Scan Enable"
 	default:
 		return fmt.Sprintf("Unknown command 0x%.2x", int(op))
 	}
