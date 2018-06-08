@@ -56,13 +56,20 @@ type CommandCompleteEvent struct {
 	Event
 }
 
+// LeMetaEvent represents LE Meta Event HCI Event
+// See Bluetooth 5.0, vol 2, part E, ch 7.7.65
+type LeMetaEvent struct {
+	Event
+}
+
 const (
 	// minimum length for command complete event
-	ccMinParamLength int = 3
+	ccMinParamLength  int = 3
+	leMetaParamLength int = 1
 )
 
-// DecodeCommandComplete decodes Command Complete HCI Event from
-// buffer
+// DecodeCommandComplete returns given event as CommandCompleteEvent
+// caller should check that the event is CommandCompleteEvent
 func DecodeCommandComplete(evt *Event) (*CommandCompleteEvent, error) {
 
 	if evt.Code != EventCodeCommandComplete {
@@ -93,4 +100,33 @@ func (cc *CommandCompleteEvent) GetReturnParameters() []byte {
 // XXX bounds check
 func (cc *CommandCompleteEvent) GetStatusParameter() ErrorCode {
 	return ErrorCode(cc.parameters[3])
+}
+
+// DecodeLeMeta returns given event as Le Meta Event
+func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
+	if evt.Code != EventCodeLeMeta {
+		return nil, fmt.Errorf("Unexpected event code 0x%.2x", evt.Code)
+	}
+	if len(evt.parameters) < leMetaParamLength {
+		return nil, fmt.Errorf("Not enough parameters for Le Meta Event")
+	}
+	return &LeMetaEvent{Event: *evt}, nil
+}
+
+// SubeventCode for LE Meta Events
+type SubeventCode byte
+
+// Subevent types for LE Meta Event
+const (
+	SubeventAdvertisingReport SubeventCode = 0x02
+)
+
+//GetSubeventCode return subevent code parameter value
+func (le *LeMetaEvent) GetSubeventCode() SubeventCode {
+	return SubeventCode(le.parameters[0])
+}
+
+//GetParameters returns parameters in this event, subevent code is not included
+func (le *LeMetaEvent) GetParameters() []byte {
+	return le.parameters[1:]
 }

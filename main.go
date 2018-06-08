@@ -22,7 +22,7 @@ var cmdline settings
 
 func init() {
 	flag.StringVar(&cmdline.device, "device", "", "HCI device to use")
-	flag.BoolVar(&cmdline.active, "active", true, "Active scanning")
+	flag.BoolVar(&cmdline.active, "active", false, "Active scanning")
 }
 
 func main() {

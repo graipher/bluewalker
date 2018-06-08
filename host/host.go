@@ -87,6 +87,17 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			h.cc <- cc
+		case hci.EventCodeLeMeta:
+			meta, err := hci.DecodeLeMeta(evt)
+			if err != nil {
+				log.Printf("Received invalid LE Meta event: %s", err.Error())
+				continue
+			}
+			if meta.GetSubeventCode() == hci.SubeventAdvertisingReport {
+				if err := parseAdvertisingReport(meta.GetParameters()); err != nil {
+					log.Printf("Error while parsing Advertising report: %s", err.Error())
+				}
+			}
 		default:
 			log.Printf("Received unexpected event %s", evt.Code.String())
 		}
