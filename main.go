@@ -14,8 +14,9 @@ import (
 
 // Command line settings
 type settings struct {
-	device string
-	active bool
+	device   string
+	active   bool
+	duration int
 }
 
 // Command line settings from user
@@ -24,6 +25,7 @@ var cmdline settings
 func init() {
 	flag.StringVar(&cmdline.device, "device", "", "HCI device to use")
 	flag.BoolVar(&cmdline.active, "active", false, "Active scanning")
+	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan")
 }
 
 func main() {
@@ -76,7 +78,7 @@ func main() {
 		wg.Done()
 	}()
 
-	ch := time.Tick(5 * time.Second)
+	ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
 	<-ch
 	host.StopScanning()
 	host.Deinit()
