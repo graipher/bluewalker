@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -17,6 +18,7 @@ type settings struct {
 	device   string
 	active   bool
 	duration int
+	debug    bool
 }
 
 // Command line settings from user
@@ -26,6 +28,7 @@ func init() {
 	flag.StringVar(&cmdline.device, "device", "", "HCI device to use")
 	flag.BoolVar(&cmdline.active, "active", false, "Active scanning")
 	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan")
+	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
 }
 
 func main() {
@@ -34,6 +37,10 @@ func main() {
 	if cmdline.device == "" {
 		fmt.Printf("Missing device name\n")
 		os.Exit(255)
+	}
+
+	if !cmdline.debug {
+		log.SetOutput(ioutil.Discard)
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
