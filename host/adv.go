@@ -58,7 +58,15 @@ func parseAdvertisingReport(data []byte) error {
 
 	for _, rep := range reports {
 		log.Printf("Report: %s", rep.String())
+		ads, err := hci.ParseAdData(rep.data)
+		if err != nil {
+			log.Printf("Invalid AD Data: %s", err.Error())
+		} else {
+			log.Printf("AD Data:")
+			for _, ad := range ads {
+				log.Printf("|%s", ad.String())
+			}
+		}
 	}
-
 	return nil
 }
