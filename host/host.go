@@ -19,6 +19,12 @@ type exec struct {
 	fail func(error)
 }
 
+//ScanReport contains information about a device found on scanning
+type ScanReport struct {
+	Address hci.BtAddress
+	Data    []*hci.AdStructure
+}
+
 // Host implements the host side of Bluetooth Host - Controller interface
 type Host struct {
 	tr hci.Transport
@@ -28,7 +34,9 @@ type Host struct {
 	// Commands for executor
 	cmd chan *exec
 	// CommandComplete events to executor
-	cc      chan *hci.CommandCompleteEvent
+	cc chan *hci.CommandCompleteEvent
+	// Channel used to inform about received scanning data
+	ad      chan *ScanReport
 	closing bool
 }
 
@@ -41,6 +49,7 @@ func New(tr hci.Transport) *Host {
 	host.evt = make(chan []byte, 2)
 	host.cmd = make(chan *exec)
 	host.cc = make(chan *hci.CommandCompleteEvent)
+	host.ad = make(chan *ScanReport, 5)
 	host.closing = false
 
 	return host
@@ -94,7 +103,7 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			if meta.GetSubeventCode() == hci.SubeventAdvertisingReport {
-				if err := parseAdvertisingReport(meta.GetParameters()); err != nil {
+				if err := parseAdvertisingReport(h.ad, meta.GetParameters()); err != nil {
 					log.Printf("Error while parsing Advertising report: %s", err.Error())
 				}
 			}
@@ -216,7 +225,7 @@ func (h *Host) Init() error {
 
 //StartScanning will start scanning for Bluetooth LE Advertisements
 //Active defines if active or passive scanning should be done
-func (h *Host) StartScanning(active bool) error {
+func (h *Host) StartScanning(active bool) (chan *ScanReport, error) {
 
 	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanParameters}
 	// See Bluetooth v5.0, vol 2, part E, ch 7.8.10
@@ -237,7 +246,7 @@ func (h *Host) StartScanning(active bool) error {
 
 	log.Printf("Setting scan parameters")
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to set Scan Parameters: %s", err.Error())
+		return nil, fmt.Errorf("Unable to set Scan Parameters: %s", err.Error())
 	}
 
 	cmd = hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
@@ -251,9 +260,9 @@ func (h *Host) StartScanning(active bool) error {
 
 	log.Printf("Starting scan")
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to start scanning: %s", err.Error())
+		return nil, fmt.Errorf("Unable to start scanning: %s", err.Error())
 	}
-	return nil
+	return h.ad, nil
 }
 
 //StopScanning stops scanning for advertising LE devices
@@ -282,5 +291,6 @@ func (h *Host) Deinit() {
 	// the channels
 	close(h.evt)
 	close(h.cc)
+	close(h.ad)
 	log.Printf("Deinitialization done")
 }

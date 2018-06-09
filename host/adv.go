@@ -23,7 +23,7 @@ func (a *advertisingReport) String() string {
 // Parse Advertising Report Data.
 // The buffer should contain data from LE Advertising Report LE Meta HCI event
 // see Bluetooth v5.0, vol 2, part E, ch 7.7.65.2
-func parseAdvertisingReport(data []byte) error {
+func parseAdvertisingReport(ch chan *ScanReport, data []byte) error {
 
 	records := data[0]
 	offset := 1
@@ -57,15 +57,24 @@ func parseAdvertisingReport(data []byte) error {
 	}
 
 	for _, rep := range reports {
-		log.Printf("Report: %s", rep.String())
+
 		ads, err := hci.ParseAdData(rep.data)
 		if err != nil {
-			log.Printf("Invalid AD Data: %s", err.Error())
-		} else {
-			log.Printf("AD Data:")
-			for _, ad := range ads {
-				log.Printf("|%s", ad.String())
-			}
+			log.Printf("Invalid AD data: %s", err.Error())
+			continue
+		}
+
+		scanReport := new(ScanReport)
+		scanReport.Address = rep.from
+		scanReport.Data = ads
+
+		// we can't block here as we are running on event loop goroutine.
+		// hence check if the channel is writable.
+		select {
+		case ch <- scanReport:
+		default:
+			log.Printf("Dropping AD report due channel being full!")
+
 		}
 	}
 	return nil

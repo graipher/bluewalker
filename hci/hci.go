@@ -147,11 +147,11 @@ func (ad AdType) String() string {
 // See Bluetooth 5.0, vol 3, part C, ch 11
 type AdStructure struct {
 	Typ  AdType
-	data []byte
+	Data []byte
 }
 
 func (ad *AdStructure) String() string {
-	return fmt.Sprintf("%s : %x", ad.Typ.String(), ad.data)
+	return fmt.Sprintf("%s : %x", ad.Typ.String(), ad.Data)
 }
 
 func decodeAdStructure(buf []byte) (*AdStructure, error) {
@@ -165,7 +165,7 @@ func decodeAdStructure(buf []byte) (*AdStructure, error) {
 	}
 	t := AdType(buf[1])
 	dat := buf[2 : 2+length-1]
-	return &AdStructure{Typ: t, data: dat}, nil
+	return &AdStructure{Typ: t, Data: dat}, nil
 }
 
 // ParseAdData parses the advertising data to ad structres
@@ -185,7 +185,7 @@ func ParseAdData(buf []byte) ([]*AdStructure, error) {
 			return nil, err
 		}
 		structures = append(structures, ad)
-		offset += (len(ad.data) + 2)
+		offset += (len(ad.Data) + 2)
 	}
 	return structures, nil
 }
