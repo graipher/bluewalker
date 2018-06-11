@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -77,10 +78,21 @@ func main() {
 				collected[sr.Address] = structs
 			} else {
 				for _, ads := range sr.Data {
+					discard := false
+					for _, s := range structs {
+						// Do not add the data if we already have the
+						// exact data
+						if s.Typ == ads.Typ && bytes.Equal(s.Data, ads.Data) {
+							discard = true
+							break
+						}
+					}
+					if !discard {
 					structs = append(structs, ads)
 					collected[sr.Address] = structs
 				}
 			}
+		}
 		}
 		wg.Done()
 	}()
