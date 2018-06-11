@@ -1,6 +1,10 @@
 package hci
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"log"
+)
 
 // Transport allows sending and receiving raw HCI packets
 // Use hci.Raw() to create transport
@@ -92,6 +96,20 @@ func (adv AdvType) String() string {
 	}
 }
 
+//AdvertisingReport represents data parsed from LE Advertising Report
+//Event received from controller
+// See Bluetooth 5.0, vol 2, part E, ch 7.7.65.2
+type AdvertisingReport struct {
+	EventType AdvType
+	Address   BtAddress
+	Data      []*AdStructure
+	Rssi      int8
+}
+
+func (r *AdvertisingReport) String() string {
+	return fmt.Sprintf("%s from %s (%s) with %d bytes of data, RSSI %d", r.EventType.String(), r.Address.String(), r.Address.Atype.String(), len(r.Data), r.Rssi)
+}
+
 // AdType is the type for advertising data
 // See Bluetooth 5.0, vol 3, part C, ch 11
 type AdType byte
@@ -169,7 +187,7 @@ func decodeAdStructure(buf []byte) (*AdStructure, error) {
 }
 
 // ParseAdData parses the advertising data to ad structres
-func ParseAdData(buf []byte) ([]*AdStructure, error) {
+func parseAdData(buf []byte) ([]*AdStructure, error) {
 
 	offset := 0
 	structures := make([]*AdStructure, 0)
@@ -188,4 +206,66 @@ func ParseAdData(buf []byte) ([]*AdStructure, error) {
 		offset += (len(ad.Data) + 2)
 	}
 	return structures, nil
+}
+
+//DecodeAdvertisingReport can be used to decode data received in
+//Advertising Report Event. Returns all reports contained in event.
+func DecodeAdvertisingReport(buf []byte) ([]*AdvertisingReport, error) {
+
+	eMalformed := fmt.Errorf("Malformed data for advertising report")
+	rd := bytes.NewReader(buf)
+	b, err := rd.ReadByte()
+	if err != nil {
+		return nil, eMalformed
+	}
+	numReports := int(b)
+
+	ret := make([]*AdvertisingReport, numReports)
+	for i := 0; i < numReports; i++ {
+		ret[i] = new(AdvertisingReport)
+		b, err := rd.ReadByte()
+		if err != nil {
+			return nil, eMalformed
+		}
+		ret[i].EventType = AdvType(b)
+		// Read the address, first byte is address type
+		b, err = rd.ReadByte()
+		if err != nil {
+			return nil, eMalformed
+		}
+		addrBytes := make([]byte, 6)
+		n, err := rd.Read(addrBytes)
+		if n != len(addrBytes) || err != nil {
+			return nil, eMalformed
+		}
+		ret[i].Address = ToBtAddress(addrBytes)
+		if b == 0 {
+			ret[i].Address.Atype = LePublicAddress
+		} else {
+			ret[i].Address.Atype = LePrivateAddress
+		}
+		// Read the AD Structure data, length first
+		b, err = rd.ReadByte()
+		if err != nil {
+			return nil, eMalformed
+		}
+		if b > 0 {
+			advData := make([]byte, int(b))
+			n, err = rd.Read(advData)
+			if n != len(advData) || err != nil {
+				return nil, eMalformed
+			}
+			ret[i].Data, err = parseAdData(advData)
+			if err != nil {
+				return nil, fmt.Errorf("Malformed data in AD Structures: %s", err.Error())
+			}
+		}
+		b, err = rd.ReadByte()
+		if err != nil {
+			return nil, eMalformed
+		}
+		ret[i].Rssi = int8(b)
+		log.Printf("Advertising report: %s", ret[i].String())
+	}
+	return ret, nil
 }

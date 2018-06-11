@@ -22,6 +22,7 @@ type exec struct {
 //ScanReport contains information about a device found on scanning
 type ScanReport struct {
 	Address hci.BtAddress
+	Rssi    int8
 	Data    []*hci.AdStructure
 }
 
@@ -103,7 +104,7 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			if meta.GetSubeventCode() == hci.SubeventAdvertisingReport {
-				if err := parseAdvertisingReport(h.ad, meta.GetParameters()); err != nil {
+				if err := handleAdvertisingReport(h.ad, meta.GetParameters()); err != nil {
 					log.Printf("Error while parsing Advertising report: %s", err.Error())
 				}
 			}
