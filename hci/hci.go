@@ -115,6 +115,7 @@ func (r *AdvertisingReport) String() string {
 type AdType byte
 
 // AD type values
+// See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile
 const (
 	AdFlags                 AdType = 0x01
 	AdMore16BitService      AdType = 0x02
@@ -127,6 +128,8 @@ const (
 	AdCompleteLocalName     AdType = 0x09
 	AdTxPower               AdType = 0x0a
 	AdClassOfdevice         AdType = 0x0d
+	AdDeviceAddress         AdType = 0x1b
+	AdAppearance            AdType = 0x19
 	AdManufacturerSpecific  AdType = 0xff
 )
 
@@ -135,17 +138,17 @@ func (ad AdType) String() string {
 	case AdFlags:
 		return "Flags"
 	case AdMore16BitService:
-		return "16 Bit Service UUID"
+		return "16 Bit Service Class UUID"
 	case AdComplete16BitService:
-		return "Complete 16 Service UUID"
+		return "Complete 16 Bit Service Class UUID"
 	case AdMore32BitService:
-		return "32 Bit Service UUID"
+		return "32 Bit Service Class UUID"
 	case AdComplete32BitService:
-		return "Complete 32 Service UUID"
+		return "Complete 32 Bit Service Class UUID"
 	case AdMore128BitService:
-		return "128 Bit Service UUID"
+		return "128 Bit Service Class UUID"
 	case AdComplete128BitService:
-		return "Complete 128 Service UUID"
+		return "Complete 128 Bit Service Class UUID"
 	case AdShortenedLocalName:
 		return "Local name"
 	case AdCompleteLocalName:
@@ -156,6 +159,10 @@ func (ad AdType) String() string {
 		return "Class of device"
 	case AdManufacturerSpecific:
 		return "Manufacturer Specific"
+	case AdDeviceAddress:
+		return "LE Bluetooth Device Address"
+	case AdAppearance:
+		return "Appearance"
 	default:
 		return fmt.Sprintf("Unknown (%.2x)", int(ad))
 	}
