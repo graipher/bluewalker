@@ -22,6 +22,13 @@ type settings struct {
 	debug    bool
 }
 
+// Information about found device
+type foundDevice struct {
+	structures []*hci.AdStructure
+	lastSeen   time.Time
+	rssi       int8
+}
+
 // Command line settings from user
 var cmdline settings
 
@@ -66,20 +73,19 @@ func main() {
 		os.Exit(255)
 	}
 
-	collected := make(map[hci.BtAddress][]*hci.AdStructure)
+	collected := make(map[hci.BtAddress]*foundDevice)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		for sr := range reportChan {
-			structs, found := collected[sr.Address]
+			dev, found := collected[sr.Address]
 			if !found {
-				structs = sr.Data
-				collected[sr.Address] = structs
+				collected[sr.Address] = &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
 			} else {
 				for _, ads := range sr.Data {
 					discard := false
-					for _, s := range structs {
+					for _, s := range dev.structures {
 						// Do not add the data if we already have the
 						// exact data
 						if s.Typ == ads.Typ && bytes.Equal(s.Data, ads.Data) {
@@ -87,12 +93,13 @@ func main() {
 							break
 						}
 					}
+					dev.rssi = sr.Rssi
+					dev.lastSeen = time.Now()
 					if !discard {
-					structs = append(structs, ads)
-					collected[sr.Address] = structs
+						dev.structures = append(dev.structures, ads)
+					}
 				}
 			}
-		}
 		}
 		wg.Done()
 	}()
@@ -105,8 +112,8 @@ func main() {
 
 	fmt.Printf("Found %d devices:\n", len(collected))
 	for key, val := range collected {
-		fmt.Printf("Device %s:\n", key.String())
-		for _, ad := range val {
+		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", key.String(), val.rssi, val.lastSeen.Format(time.Stamp))
+		for _, ad := range val.structures {
 			fmt.Printf("\t%s\n", ad.String())
 			if ad.Typ == hci.AdCompleteLocalName || ad.Typ == hci.AdShortenedLocalName {
 				fmt.Printf("\t\tName: \"%s\"\n", string(ad.Data))
