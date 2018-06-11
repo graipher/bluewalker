@@ -81,6 +81,9 @@ func main() {
 		for sr := range reportChan {
 			dev, found := collected[sr.Address]
 			if !found {
+				if !cmdline.debug {
+					fmt.Printf(".")
+				}
 				collected[sr.Address] = &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
 			} else {
 				for _, ads := range sr.Data {
@@ -110,7 +113,7 @@ func main() {
 	host.Deinit()
 	wg.Wait()
 
-	fmt.Printf("Found %d devices:\n", len(collected))
+	fmt.Printf("\nFound %d devices:\n", len(collected))
 	for key, val := range collected {
 		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", key.String(), val.rssi, val.lastSeen.Format(time.Stamp))
 		for _, ad := range val.structures {
