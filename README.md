@@ -26,7 +26,8 @@ can be started using `sudo bluewalker -device <hcidevice>`. Bluewalker needs
 to be run as root to be able to access the raw HCI device.
 
 By default Bluewalker listens for avaibale Bluetooth LE advertisements for
-5 seconds and then prints information about found devices and (all) 
-advertisement data it has received. The number of seconds to scan can be
-changed with `-duration <seconds>` parameter. By default Bluewalker does only
-passive scanning, active scanning can be turned on with `-active` parameter.
+5 seconds and then prints information about found devices and all different
+advertisement data it has received from each device. The number of seconds to
+scan can be changed with `-duration <seconds>` parameter. By default Bluewalker
+does only passive scanning, active scanning can be turned on with `-active`
+parameter.
