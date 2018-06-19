@@ -200,14 +200,14 @@ func parseAdData(buf []byte) ([]*AdStructure, error) {
 	structures := make([]*AdStructure, 0)
 	for offset < len(buf) {
 		ad, err := decodeAdStructure(buf[offset:])
+		if err != nil {
+			return nil, err
+		}
 		if ad == nil {
 			// in theory, there could be another structure after
 			// 0 -length block.
 			offset++
 			continue
-		}
-		if err != nil {
-			return nil, err
 		}
 		structures = append(structures, ad)
 		offset += (len(ad.Data) + 2)
