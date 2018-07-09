@@ -1,0 +1,22 @@
+image: golang:alpine
+
+stages:
+  - build
+  - test
+
+before_script:
+  - mkdir -p /go/src/gitlab.com/jtaimisto
+  - cp -a $(pwd) /go/src/gitlab.com/jtaimisto/bluewalker
+  - go get golang.org/x/sys/unix
+ 
+build-main-app:
+  stage: build
+  script:
+    - cd /go/
+    - go install gitlab.com/jtaimisto/bluewalker
+
+run-tests:
+  stage: test
+  script:
+   - cd /go/
+   - go test gitlab.com/jtaimisto/bluewalker...
