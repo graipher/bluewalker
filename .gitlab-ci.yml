@@ -7,6 +7,7 @@ stages:
 before_script:
   - mkdir -p /go/src/gitlab.com/jtaimisto
   - cp -a $(pwd) /go/src/gitlab.com/jtaimisto/bluewalker
+  - apk add --no-cache git
   - go get golang.org/x/sys/unix
  
 build-main-app:
