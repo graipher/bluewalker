@@ -37,7 +37,9 @@ type Host struct {
 	// CommandComplete events to executor
 	cc chan *hci.CommandCompleteEvent
 	// Channel used to inform about received scanning data
-	ad      chan *ScanReport
+	ad chan *ScanReport
+	// Filters for incoming advertising reports
+	filters adfilters
 	closing bool
 }
 
@@ -47,6 +49,7 @@ func New(tr hci.Transport) *Host {
 
 	host := new(Host)
 	host.tr = tr
+	host.filters = filterList()
 	host.evt = make(chan []byte, 2)
 	host.cmd = make(chan *exec)
 	host.cc = make(chan *hci.CommandCompleteEvent)
@@ -104,7 +107,7 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			if meta.GetSubeventCode() == hci.SubeventAdvertisingReport {
-				if err := handleAdvertisingReport(h.ad, meta.GetParameters()); err != nil {
+				if err := handleAdvertisingReport(h.ad, h.filters, meta.GetParameters()); err != nil {
 					log.Printf("Error while parsing Advertising report: %s", err.Error())
 				}
 			}
