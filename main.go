@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -17,11 +18,12 @@ import (
 
 // Command line settings
 type settings struct {
-	device     string
-	active     bool
-	duration   int
-	debug      bool
-	addrFilter string
+	device       string
+	active       bool
+	duration     int
+	debug        bool
+	addrFilter   string
+	vendorFilter string
 }
 
 // Information about found device
@@ -40,6 +42,7 @@ func init() {
 	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan")
 	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
+	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 }
 
 func parseAddressFilters(addresses string) ([]host.AdFilter, error) {
@@ -74,6 +77,35 @@ func parseAddressFilters(addresses string) ([]host.AdFilter, error) {
 	return parsed, nil
 }
 
+type vendorFilter struct {
+	preamble []byte
+}
+
+func (v *vendorFilter) Filter(report *hci.AdvertisingReport) bool {
+	ret := false
+	for _, data := range report.Data {
+		if data.Typ == hci.AdManufacturerSpecific {
+			if len(data.Data) < len(v.preamble) {
+				continue
+			}
+			return bytes.Equal(data.Data[:len(v.preamble)], v.preamble)
+		}
+	}
+	return ret
+}
+
+func parseVendorSpecFilter(data string) (host.AdFilter, error) {
+
+	if strings.HasPrefix(data, "0x") {
+		data = data[2:]
+	}
+	bytes, err := hex.DecodeString(data)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid vendor specific data specification (%s)", err.Error())
+	}
+	return &vendorFilter{preamble: bytes}, nil
+}
+
 func main() {
 
 	flag.Parse()
@@ -92,6 +124,15 @@ func main() {
 			fmt.Printf("%s\n", err.Error())
 			os.Exit(255)
 		}
+	}
+
+	if cmdline.vendorFilter != "" {
+		filt, err := parseVendorSpecFilter(cmdline.vendorFilter)
+		if err != nil {
+			fmt.Printf("%s\n", err.Error())
+			os.Exit(255)
+		}
+		filters = append(filters, filt)
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
