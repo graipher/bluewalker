@@ -199,7 +199,13 @@ func main() {
 
 	fmt.Printf("\nFound %d devices:\n", len(collected))
 	for key, val := range collected {
-		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", key.String(), val.rssi, val.lastSeen.Format(time.Stamp))
+		addrstr := ""
+		if key.Atype == hci.LePrivateAddress {
+			addrstr = fmt.Sprintf("%s,private", key.String())
+		} else {
+			addrstr = fmt.Sprintf("%s", key.String())
+		}
+		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", addrstr, val.rssi, val.lastSeen.Format(time.Stamp))
 		for _, ad := range val.structures {
 			fmt.Printf("\t%s\n", ad.String())
 			if ad.Typ == hci.AdCompleteLocalName || ad.Typ == hci.AdShortenedLocalName {
