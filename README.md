@@ -31,3 +31,14 @@ advertisement data it has received from each device. The number of seconds to
 scan can be changed with `-duration <seconds>` parameter. By default Bluewalker
 does only passive scanning, active scanning can be turned on with `-active`
 parameter.
+
+To display information only about devices with given address, use
+`-filter-addr <address>`. Note that if device is advertising with private
+(random) address, add the address type after comma to the address string. 
+Multiple addresses can be given if they are separated by semicolons. 
+For example: `sudo ./bluewalker -device hci0 -filter-addr "4f:c0:f1:51:4f:22,private;57:68:4b:42:45:0a,private"`
+
+To filter devices based on the vendor specific advertising data, use 
+`-filter-vendor <data>`, where data is matched against the start of vendor
+specific data (if one exists) in advertisement data. For example, to search
+all advertising apple devices use: `sudo ./bluewalker -device hci0 -filter-vendor 0x4c00` 
