@@ -297,7 +297,7 @@ func TestStartScanHappy(t *testing.T) {
 	h := New(nil)
 	ch := make(chan error)
 	go func() {
-		_, err := h.StartScanning(false)
+		_, err := h.StartScanning(false, nil)
 		ch <- err
 	}()
 
@@ -319,7 +319,7 @@ func TestStartScanFail(t *testing.T) {
 	h := New(nil)
 	ch := make(chan error)
 	go func() {
-		_, err := h.StartScanning(false)
+		_, err := h.StartScanning(false, nil)
 		ch <- err
 	}()
 
@@ -337,7 +337,7 @@ func TestStartScan2ndFail(t *testing.T) {
 	h := New(nil)
 	ch := make(chan error)
 	go func() {
-		_, err := h.StartScanning(false)
+		_, err := h.StartScanning(false, nil)
 		ch <- err
 	}()
 

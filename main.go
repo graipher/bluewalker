@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,10 +17,11 @@ import (
 
 // Command line settings
 type settings struct {
-	device   string
-	active   bool
-	duration int
-	debug    bool
+	device     string
+	active     bool
+	duration   int
+	debug      bool
+	addrFilter string
 }
 
 // Information about found device
@@ -37,6 +39,39 @@ func init() {
 	flag.BoolVar(&cmdline.active, "active", false, "Active scanning")
 	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan")
 	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
+	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
+}
+
+func parseAddressFilters(addresses string) ([]host.AdFilter, error) {
+
+	addrs := strings.Split(addresses, ";")
+	parsed := make([]host.AdFilter, len(addrs))
+	for i, addr := range addrs {
+		atype := hci.LePublicAddress
+		if strings.Contains(addr, ",") {
+			parts := strings.Split(addr, ",")
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("Invalid address specification \"%s\"", addresses)
+			}
+			switch parts[1] {
+			case "public":
+				atype = hci.LePublicAddress
+			case "private":
+				atype = hci.LePrivateAddress
+			default:
+				return nil, fmt.Errorf("Invalid address type \"%s\"", parts[1])
+			}
+			addr = parts[0]
+		}
+		baddr, err := hci.BtAddressFromString(addr)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid filter (%s)", err.Error())
+		}
+		baddr.Atype = atype
+		log.Printf("Parsed address %s", baddr.String())
+		parsed[i] = host.AddressFilter(baddr)
+	}
+	return parsed, nil
 }
 
 func main() {
@@ -49,6 +84,14 @@ func main() {
 
 	if !cmdline.debug {
 		log.SetOutput(ioutil.Discard)
+	}
+	var filters []host.AdFilter
+	if cmdline.addrFilter != "" {
+		var err error
+		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
+			fmt.Printf("%s\n", err.Error())
+			os.Exit(255)
+		}
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
@@ -66,7 +109,7 @@ func main() {
 		os.Exit(255)
 	}
 
-	reportChan, err := host.StartScanning(cmdline.active)
+	reportChan, err := host.StartScanning(cmdline.active, filters)
 	if err != nil {
 		log.Printf("Unable to start scanning: %s", err.Error())
 		host.Deinit()

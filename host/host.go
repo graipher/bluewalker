@@ -229,7 +229,13 @@ func (h *Host) Init() error {
 
 //StartScanning will start scanning for Bluetooth LE Advertisements
 //Active defines if active or passive scanning should be done
-func (h *Host) StartScanning(active bool) (chan *ScanReport, error) {
+func (h *Host) StartScanning(active bool, filters []AdFilter) (chan *ScanReport, error) {
+
+	if filters != nil && len(filters) > 0 {
+		for _, f := range filters {
+			h.filters = addFilter(h.filters, f)
+		}
+	}
 
 	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanParameters}
 	// See Bluetooth v5.0, vol 2, part E, ch 7.8.10
