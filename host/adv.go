@@ -3,20 +3,14 @@ package host
 import (
 	"log"
 
+	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
 
-//AdFilter can be used to filter incoming Advertising Reports
-//if Filter() returns true, matching ScanReport is created and
-//passed to the channel returned by Host.StartScan()
-type AdFilter interface {
-	Filter(*hci.AdvertisingReport) bool
-}
-
-type adfilters []AdFilter
+type adfilters []filter.AdFilter
 
 func filterList() adfilters {
-	return adfilters(make([]AdFilter, 0))
+	return adfilters(make([]filter.AdFilter, 0))
 }
 
 func (f adfilters) filter(report *hci.AdvertisingReport) bool {
@@ -33,22 +27,8 @@ func (f adfilters) filter(report *hci.AdvertisingReport) bool {
 	return pass
 }
 
-func addFilter(filters adfilters, filt AdFilter) adfilters {
+func addFilter(filters adfilters, filt filter.AdFilter) adfilters {
 	return append(filters, filt)
-}
-
-type addressFilter struct {
-	addr hci.BtAddress
-}
-
-func (f *addressFilter) Filter(rep *hci.AdvertisingReport) bool {
-	return rep.Address == f.addr
-}
-
-//AddressFilter returns AdFilter which filters Advertising Reports on sender
-//address. Filter passes report if it comes from given address
-func AddressFilter(address hci.BtAddress) AdFilter {
-	return &addressFilter{addr: address}
 }
 
 // Parse Advertising Report Data.

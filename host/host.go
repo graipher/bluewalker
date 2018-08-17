@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
 
@@ -229,7 +230,7 @@ func (h *Host) Init() error {
 
 //StartScanning will start scanning for Bluetooth LE Advertisements
 //Active defines if active or passive scanning should be done
-func (h *Host) StartScanning(active bool, filters []AdFilter) (chan *ScanReport, error) {
+func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *ScanReport, error) {
 
 	if filters != nil && len(filters) > 0 {
 		for _, f := range filters {

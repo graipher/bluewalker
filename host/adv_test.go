@@ -3,13 +3,15 @@ package host
 import (
 	"testing"
 
+	"gitlab.com/jtaimisto/bluewalker/filter"
+
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
 
 func TestFiltering(t *testing.T) {
 
 	addr, _ := hci.BtAddressFromString("11:22:33:44:55:66")
-	filt := AddressFilter(addr)
+	filt := filter.ByAddress(addr)
 
 	list := filterList()
 	list = addFilter(list, filt)
@@ -42,8 +44,8 @@ func TestFilteringMultiple(t *testing.T) {
 
 	addr, _ := hci.BtAddressFromString("11:22:33:44:55:66")
 	addr2, _ := hci.BtAddressFromString("00:11:22:33:44:55")
-	filt := AddressFilter(addr)
-	filt2 := AddressFilter(addr2)
+	filt := filter.ByAddress(addr)
+	filt2 := filter.ByAddress(addr2)
 
 	list := filterList()
 	list = addFilter(list, filt)

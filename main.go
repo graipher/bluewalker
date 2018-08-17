@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 	"gitlab.com/jtaimisto/bluewalker/host"
 )
@@ -45,10 +46,10 @@ func init() {
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 }
 
-func parseAddressFilters(addresses string) ([]host.AdFilter, error) {
+func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 
 	addrs := strings.Split(addresses, ";")
-	parsed := make([]host.AdFilter, len(addrs))
+	parsed := make([]filter.AdFilter, len(addrs))
 	for i, addr := range addrs {
 		atype := hci.LePublicAddress
 		if strings.Contains(addr, ",") {
@@ -72,29 +73,12 @@ func parseAddressFilters(addresses string) ([]host.AdFilter, error) {
 		}
 		baddr.Atype = atype
 		log.Printf("Parsed address %s", baddr.String())
-		parsed[i] = host.AddressFilter(baddr)
+		parsed[i] = filter.ByAddress(baddr)
 	}
 	return parsed, nil
 }
 
-type vendorFilter struct {
-	preamble []byte
-}
-
-func (v *vendorFilter) Filter(report *hci.AdvertisingReport) bool {
-	ret := false
-	for _, data := range report.Data {
-		if data.Typ == hci.AdManufacturerSpecific {
-			if len(data.Data) < len(v.preamble) {
-				continue
-			}
-			return bytes.Equal(data.Data[:len(v.preamble)], v.preamble)
-		}
-	}
-	return ret
-}
-
-func parseVendorSpecFilter(data string) (host.AdFilter, error) {
+func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 
 	if strings.HasPrefix(data, "0x") {
 		data = data[2:]
@@ -103,7 +87,7 @@ func parseVendorSpecFilter(data string) (host.AdFilter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid vendor specific data specification (%s)", err.Error())
 	}
-	return &vendorFilter{preamble: bytes}, nil
+	return filter.ByVendor(bytes), nil
 }
 
 func main() {
@@ -117,7 +101,7 @@ func main() {
 	if !cmdline.debug {
 		log.SetOutput(ioutil.Discard)
 	}
-	var filters []host.AdFilter
+	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
 		var err error
 		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
