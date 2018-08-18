@@ -43,7 +43,7 @@ func TestVendorData(t *testing.T) {
 	structs[0].Typ = hci.AdManufacturerSpecific
 	structs[0].Data = vdata
 
-	rep := buildAdvertisingReport("11:22:33:44:55", structs)
+	rep := buildAdvertisingReport("11:22:33:44:55:66", structs)
 
 	if !filt.Filter(rep) {
 		t.Errorf("Expected vendor specific filter to match")
@@ -60,7 +60,7 @@ func TestVendorDataShort(t *testing.T) {
 	structs[0].Typ = hci.AdManufacturerSpecific
 	structs[0].Data = vdata
 
-	rep := buildAdvertisingReport("11:22:33:44:55", structs)
+	rep := buildAdvertisingReport("11:22:33:44:55:66", structs)
 
 	if filt.Filter(rep) {
 		t.Errorf("Did not expect the filter to match")
@@ -77,9 +77,45 @@ func TestVendorDataNoVendor(t *testing.T) {
 	structs[0].Typ = hci.AdCompleteLocalName
 	structs[0].Data = vdata
 
-	rep := buildAdvertisingReport("11:22:33:44:55", structs)
+	rep := buildAdvertisingReport("11:22:33:44:55:66", structs)
 
 	if filt.Filter(rep) {
 		t.Errorf("Expected vendor specific filter to match")
 	}
+}
+
+func TestAdTypeFiltering(t *testing.T) {
+
+	filt := ByAdType(hci.AdCompleteLocalName)
+	structs := make([]*hci.AdStructure, 2)
+	structs[0] = new(hci.AdStructure)
+	structs[0].Typ = hci.AdManufacturerSpecific
+	structs[0].Data = nil
+	structs[1] = new(hci.AdStructure)
+	structs[1].Typ = hci.AdCompleteLocalName
+	structs[1].Data = []byte("local")
+	rep := buildAdvertisingReport("11:22:33:44:55:66", structs)
+
+	if !filt.Filter(rep) {
+		t.Errorf("Expected Ad Type filter to match")
+	}
+
+}
+
+func TestAdTypeFilteringNoMatch(t *testing.T) {
+
+	filt := ByAdType(hci.AdCompleteLocalName)
+	structs := make([]*hci.AdStructure, 2)
+	structs[0] = new(hci.AdStructure)
+	structs[0].Typ = hci.AdManufacturerSpecific
+	structs[0].Data = nil
+	structs[1] = new(hci.AdStructure)
+	structs[1].Typ = hci.AdShortenedLocalName
+	structs[1].Data = []byte("local")
+	rep := buildAdvertisingReport("11:22:33:44:55:66", structs)
+
+	if filt.Filter(rep) {
+		t.Errorf("Did not expect the filter to match")
+	}
+
 }

@@ -51,3 +51,24 @@ func (v *vendorFilter) Filter(report *hci.AdvertisingReport) bool {
 func ByVendor(preamble []byte) AdFilter {
 	return &vendorFilter{preamble: preamble}
 }
+
+type adTypeFilter struct {
+	typ hci.AdType
+}
+
+func (f *adTypeFilter) Filter(report *hci.AdvertisingReport) bool {
+	ret := false
+	for _, data := range report.Data {
+		if data.Typ == f.typ {
+			ret = true
+			break
+		}
+	}
+	return ret
+}
+
+//ByAdType returns filter which can be used to filter Advertising Reports
+//based on the Type field in the Ad Structures contained on the Advertising Reports
+func ByAdType(typ hci.AdType) AdFilter {
+	return &adTypeFilter{typ: typ}
+}
