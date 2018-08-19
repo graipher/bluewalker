@@ -42,3 +42,8 @@ To filter devices based on the vendor specific advertising data, use
 `-filter-vendor <data>`, where data is matched against the start of vendor
 specific data (if one exists) in advertisement data. For example, to search
 all advertising apple devices use: `sudo ./bluewalker -device hci0 -filter-vendor 0x4c00` 
+
+To filter devices based on the _type_ field of the Advertising Data, use
+`-filter-adtype <type>`, where type is comma -separated list of AD Types to allow (in hexadecimal).
+For example, to search all devices which have device name in advertisement data use:
+`sudo ./bluewalker -device hci0 -filter-adtype 0x08,0x09`. See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile for list of allowed AD Types. 
