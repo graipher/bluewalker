@@ -25,6 +25,7 @@ type settings struct {
 	debug        bool
 	addrFilter   string
 	vendorFilter string
+	adTypeFilter string
 }
 
 // Information about found device
@@ -44,6 +45,7 @@ func init() {
 	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
+	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
 }
 
 func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
@@ -90,6 +92,26 @@ func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 	return filter.ByVendor(bytes), nil
 }
 
+func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
+
+	parts := strings.Split(types, ",")
+	filters := make([]filter.AdFilter, len(parts))
+	for i, part := range parts {
+		if strings.HasPrefix(part, "0x") {
+			part = part[2:]
+		}
+		data, err := hex.DecodeString(part)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid Ad Type value \"%s\" (%s)", part, err.Error())
+		}
+		if len(data) > 1 {
+			return nil, fmt.Errorf("Invald value for Ad Structure type (%s), expected one byte in hexadecimal", part)
+		}
+		filters[i] = filter.ByAdType(hci.AdType(data[0]))
+	}
+	return filters, nil
+}
+
 func main() {
 
 	flag.Parse()
@@ -117,6 +139,17 @@ func main() {
 			os.Exit(255)
 		}
 		filters = append(filters, filt)
+	}
+
+	if cmdline.adTypeFilter != "" {
+		filt, err := parseAdTypeFilters(cmdline.adTypeFilter)
+		if err != nil {
+			fmt.Printf("%s\n", err.Error())
+			os.Exit(255)
+		}
+		for _, f := range filt {
+			filters = append(filters, f)
+		}
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
