@@ -156,20 +156,20 @@ func main() {
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
-		log.Printf("Error while opening RAW HCI socket: %s", err.Error())
+		fmt.Printf("Error while opening RAW HCI socket: %s\nAre you running as root and have you run sudo hciconfig %s down?\n", err.Error(), cmdline.device)
 		os.Exit(255)
 	}
 
 	host := host.New(raw)
 	if err = host.Init(); err != nil {
-		log.Printf("Unable to initialize host: %s", err.Error())
+		fmt.Printf("Unable to initialize host: %s\n", err.Error())
 		host.Deinit()
 		os.Exit(255)
 	}
 
 	reportChan, err := host.StartScanning(cmdline.active, filters)
 	if err != nil {
-		log.Printf("Unable to start scanning: %s", err.Error())
+		fmt.Printf("Unable to start scanning: %s\n", err.Error())
 		host.Deinit()
 		os.Exit(255)
 	}
