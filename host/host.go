@@ -295,6 +295,10 @@ func (h *Host) StopScanning() error {
 // Deinit will deinitialize Host
 func (h *Host) Deinit() {
 	log.Printf("Deinitializing host")
+	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
+	// not checking the return value since there is not much we can do on error
+	h.executeStatusCommand(&cmd)
+
 	h.closing = true
 	h.tr.Close()
 	h.wg.Wait()
