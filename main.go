@@ -8,8 +8,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
@@ -153,6 +155,8 @@ func main() {
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
@@ -209,7 +213,12 @@ func main() {
 	}()
 
 	ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
-	<-ch
+	select {
+	case <-ch:
+	case s := <-sig:
+		log.Printf("Received signal %s, stopping ", s.String())
+
+	}
 	host.StopScanning()
 	host.Deinit()
 	wg.Wait()
