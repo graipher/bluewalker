@@ -89,6 +89,21 @@ const (
 	AdManufacturerSpecific  AdType = 0xff
 )
 
+// AD Flags bitmap values.
+// Specified in Supplement to the Bluetooth Core Specification (CSS version 7), Part A, ch 1.3.1
+const (
+	// LE Limited Discoverable Mode
+	AdFlagLimitedDisc = 0x01
+	// LE General Discoverable Mode
+	AdFlagGeneralDisc = (0x01 << 1)
+	// BR/EDR Not Supported.
+	AdFlagNoBrEdr = (0x01 << 2)
+	// Simultaneous LE and BR/EDR to Same Device Capable (Controller)
+	AdFlagLeBrEdrController = (0x01 << 3)
+	// Simultaneous LE and BR/EDR to Same Device Capable (Host)
+	AdFlagLeBrEdrHost = (0x01 << 4)
+)
+
 func (ad AdType) String() string {
 	switch ad {
 	case AdFlags:
