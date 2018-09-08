@@ -73,20 +73,48 @@ type AdType byte
 // AD type values
 // See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile
 const (
-	AdFlags                 AdType = 0x01
-	AdMore16BitService      AdType = 0x02
-	AdComplete16BitService  AdType = 0x03
-	AdMore32BitService      AdType = 0x04
-	AdComplete32BitService  AdType = 0x05
-	AdMore128BitService     AdType = 0x06
-	AdComplete128BitService AdType = 0x07
-	AdShortenedLocalName    AdType = 0x08
-	AdCompleteLocalName     AdType = 0x09
-	AdTxPower               AdType = 0x0a
-	AdClassOfdevice         AdType = 0x0d
-	AdDeviceAddress         AdType = 0x1b
-	AdAppearance            AdType = 0x19
-	AdManufacturerSpecific  AdType = 0xff
+	AdFlags                  AdType = 0x01
+	AdMore16BitService       AdType = 0x02
+	AdComplete16BitService   AdType = 0x03
+	AdMore32BitService       AdType = 0x04
+	AdComplete32BitService   AdType = 0x05
+	AdMore128BitService      AdType = 0x06
+	AdComplete128BitService  AdType = 0x07
+	AdShortenedLocalName     AdType = 0x08
+	AdCompleteLocalName      AdType = 0x09
+	AdTxPower                AdType = 0x0a
+	AdClassOfdevice          AdType = 0x0d
+	AdPairingHash            AdType = 0x0e
+	AdPairingRandomizer      AdType = 0x0f
+	AdSmTk                   AdType = 0x10
+	AdSmOobFlags             AdType = 0x11
+	AdSlaveConnInterval      AdType = 0x12
+	Ad16bitServiceSol        AdType = 0x14
+	Ad128bitServiceSol       AdType = 0x15
+	AdServiceData            AdType = 0x16
+	AdPublicTargetAddr       AdType = 0x17
+	AdRandomTargetAddr       AdType = 0x18
+	AdAppearance             AdType = 0x19
+	AdAdvInterval            AdType = 0x1a
+	AdDeviceAddress          AdType = 0x1b
+	AdLeRole                 AdType = 0x1c
+	AdPairingHash256         AdType = 0x1d
+	AdPairingRandomizer256   AdType = 0x1e
+	Ad32BitServiceSol        AdType = 0x1f
+	AdServiceData32          AdType = 0x20
+	AdServiceData128         AdType = 0x21
+	AdSecureConnConfirm      AdType = 0x22
+	AdSecureConnRandom       AdType = 0x23
+	AdURI                    AdType = 0x24
+	AdIndoorPosit            AdType = 0x25
+	AdTransportDiscoveryData AdType = 0x26
+	AdLeSupportedFeatures    AdType = 0x27
+	AdChannelMapUpdate       AdType = 0x28
+	AdMeshPbAdv              AdType = 0x29
+	AdMeshMessage            AdType = 0x2a
+	AdMeshBeacon             AdType = 0x2b
+	Ad3dData                 AdType = 0x3d
+	AdManufacturerSpecific   AdType = 0xff
 )
 
 // AD Flags bitmap values.
@@ -121,7 +149,7 @@ func (ad AdType) String() string {
 	case AdComplete128BitService:
 		return "Complete 128 Bit Service Class UUID"
 	case AdShortenedLocalName:
-		return "Local name"
+		return "Shortened Local name"
 	case AdCompleteLocalName:
 		return "Complete local name"
 	case AdTxPower:
@@ -134,6 +162,62 @@ func (ad AdType) String() string {
 		return "LE Bluetooth Device Address"
 	case AdAppearance:
 		return "Appearance"
+	case AdPairingHash:
+		return "Simple Pairing Hash"
+	case AdPairingRandomizer:
+		return "Simple Pairing Randomizer"
+	case AdSmTk:
+		return "Security Manager TK Value"
+	case AdSmOobFlags:
+		return "Security Manager OOB Flags"
+	case AdSlaveConnInterval:
+		return "Slave Connection Interval Range"
+	case Ad16bitServiceSol:
+		return "List of 16-bit Service Solicitation UUIDs"
+	case Ad128bitServiceSol:
+		return "List of 128-bit Service Solicitation UUIDs"
+	case AdServiceData:
+		return "Service Data"
+	case AdPublicTargetAddr:
+		return "Public Target Address"
+	case AdRandomTargetAddr:
+		return "Random Target Address"
+	case AdAdvInterval:
+		return "Advertising interval"
+	case AdLeRole:
+		return "LE Role"
+	case AdPairingHash256:
+		return "Simple Pairing Hash C-256"
+	case AdPairingRandomizer256:
+		return "Simple Pairing Randomizer R-256"
+	case Ad32BitServiceSol:
+		return "List of 32-bit Service Solicitation UUIDs"
+	case AdServiceData32:
+		return "Service Data - 32-bit UUID"
+	case AdServiceData128:
+		return "Service Data - 128-bit UUID"
+	case AdSecureConnConfirm:
+		return "LE Secure Connections Confirmation Value"
+	case AdSecureConnRandom:
+		return "LE Secure Connections Random Value"
+	case AdURI:
+		return "URI"
+	case AdIndoorPosit:
+		return "Indoor Positioning"
+	case AdTransportDiscoveryData:
+		return "Transport Discovery Data"
+	case AdLeSupportedFeatures:
+		return "LE Supported Features"
+	case AdChannelMapUpdate:
+		return "Channel Map Update Indication"
+	case AdMeshPbAdv:
+		return "PB-ADV"
+	case AdMeshMessage:
+		return "Mesh Message"
+	case AdMeshBeacon:
+		return "Mesh Beacon"
+	case Ad3dData:
+		return "3D Data"
 	default:
 		return fmt.Sprintf("Unknown (%.2x)", int(ad))
 	}
@@ -147,7 +231,7 @@ type AdStructure struct {
 }
 
 func (ad *AdStructure) String() string {
-	return fmt.Sprintf("%s : %x", ad.Typ.String(), ad.Data)
+	return fmt.Sprintf("%s : 0x%x", ad.Typ.String(), ad.Data)
 }
 
 func decodeAdStructure(buf []byte) (*AdStructure, error) {
