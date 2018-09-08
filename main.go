@@ -114,6 +114,48 @@ func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
 	return filters, nil
 }
 
+func checkFlag(flags byte, flag int) bool {
+	return (int(flags) & flag) == flag
+}
+
+func decodeAdFlags(flags []byte) string {
+	if len(flags) != 1 {
+		return "(Invalid)"
+	}
+	str := ""
+	str += "["
+	for i := 7; i >= 0; i-- {
+		if checkFlag(flags[0], (0x01 << uint8(i))) {
+			str += "1"
+		} else {
+			str += "0"
+		}
+	}
+	str += "] "
+	if flags[0] == 0 {
+		return str
+	}
+	str += "("
+	if checkFlag(flags[0], hci.AdFlagLimitedDisc) {
+		str += "LE Limited Discoverable,"
+	}
+	if checkFlag(flags[0], hci.AdFlagGeneralDisc) {
+		str += "LE General Discoverable,"
+	}
+	if checkFlag(flags[0], hci.AdFlagNoBrEdr) {
+		str += "BR/EDR not supported,"
+	}
+	if checkFlag(flags[0], hci.AdFlagLeBrEdrController) {
+		str += "LE & BR/EDR (controller),"
+	}
+	if checkFlag(flags[0], hci.AdFlagLeBrEdrHost) {
+		str += "LE & BR/EDR (host),"
+	}
+	str = str[:len(str)-1]
+	str += ")"
+	return str
+}
+
 func main() {
 
 	flag.Parse()
@@ -233,9 +275,15 @@ func main() {
 		}
 		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", addrstr, val.rssi, val.lastSeen.Format(time.Stamp))
 		for _, ad := range val.structures {
-			fmt.Printf("\t%s\n", ad.String())
-			if ad.Typ == hci.AdCompleteLocalName || ad.Typ == hci.AdShortenedLocalName {
-				fmt.Printf("\t\tName: \"%s\"\n", string(ad.Data))
+			switch ad.Typ {
+			case hci.AdFlags:
+				fmt.Printf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data))
+			case hci.AdCompleteLocalName:
+				fallthrough
+			case hci.AdShortenedLocalName:
+				fmt.Printf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data))
+			default:
+				fmt.Printf("\t%s\n", ad.String())
 			}
 		}
 	}
