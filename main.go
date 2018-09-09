@@ -35,6 +35,7 @@ type foundDevice struct {
 	structures []*hci.AdStructure
 	lastSeen   time.Time
 	rssi       int8
+	types      []hci.AdvType
 }
 
 // Command line settings from user
@@ -231,7 +232,10 @@ func main() {
 				if !cmdline.debug {
 					fmt.Printf(".")
 				}
-				collected[sr.Address] = &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
+				ndev := &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
+				ndev.types = make([]hci.AdvType, 1, 2)
+				ndev.types[0] = sr.Type
+				collected[sr.Address] = ndev
 			} else {
 				for _, ads := range sr.Data {
 					discard := false
@@ -242,6 +246,16 @@ func main() {
 							discard = true
 							break
 						}
+					}
+					newType := true
+					for _, t := range dev.types {
+						if t == sr.Type {
+							newType = false
+							break
+						}
+					}
+					if newType {
+						dev.types = append(dev.types, sr.Type)
 					}
 					dev.rssi = sr.Rssi
 					dev.lastSeen = time.Now()
@@ -274,6 +288,15 @@ func main() {
 			addrstr = fmt.Sprintf("%s", key.String())
 		}
 		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", addrstr, val.rssi, val.lastSeen.Format(time.Stamp))
+		fmt.Printf("Events: ")
+		for i, t := range val.types {
+			if i > 0 {
+				fmt.Printf(",")
+			}
+			fmt.Printf("%s", t.String())
+		}
+		fmt.Printf("\n")
+		fmt.Printf("Advertising Data Structures:\n")
 		for _, ad := range val.structures {
 			switch ad.Typ {
 			case hci.AdFlags:
