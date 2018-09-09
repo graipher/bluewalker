@@ -268,22 +268,22 @@ func main() {
 							break
 						}
 					}
-					newType := true
-					for _, t := range dev.types {
-						if t == sr.Type {
-							newType = false
-							break
-						}
-					}
-					if newType {
-						dev.types = append(dev.types, sr.Type)
-					}
-					dev.rssi = sr.Rssi
-					dev.lastSeen = time.Now()
 					if !discard {
 						dev.structures = append(dev.structures, ads)
 					}
 				}
+				newType := true
+				for _, t := range dev.types {
+					if t == sr.Type {
+						newType = false
+						break
+					}
+				}
+				if newType {
+					dev.types = append(dev.types, sr.Type)
+				}
+				dev.rssi = sr.Rssi
+				dev.lastSeen = time.Now()
 			}
 		}
 		wg.Done()
