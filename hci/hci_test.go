@@ -152,7 +152,7 @@ func TestReportWithNoAdData(t *testing.T) {
 		t.Errorf("Expected %s event, got %s", AdvInd.String(), ar[0].EventType.String())
 	}
 	expectedAddress := ToBtAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
-	expectedAddress.Atype = LePrivateAddress
+	expectedAddress.Atype = LeRandomAddress
 	if ar[0].Address != expectedAddress {
 		t.Errorf("Expected event from %s, was from %s", expectedAddress.String(), ar[0].Address.String())
 	}

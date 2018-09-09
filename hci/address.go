@@ -21,17 +21,17 @@ func (ba BtAddress) String() string {
 
 // Contstants for Bluetooth address type
 const (
-	LePublicAddress  BtAddressType = 0x00
-	LePrivateAddress BtAddressType = 0x01
-	BrEdrAddress     BtAddressType = 0x02
+	LePublicAddress BtAddressType = 0x00
+	LeRandomAddress BtAddressType = 0x01
+	BrEdrAddress    BtAddressType = 0x02
 )
 
 func (t BtAddressType) String() string {
 	switch t {
 	case LePublicAddress:
 		return "LE Public"
-	case LePrivateAddress:
-		return "LE Private"
+	case LeRandomAddress:
+		return "LE Random"
 	case BrEdrAddress:
 		return "BR/EDR"
 	default:

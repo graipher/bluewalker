@@ -304,7 +304,7 @@ func DecodeAdvertisingReport(buf []byte) ([]*AdvertisingReport, error) {
 		if b == 0 {
 			ret[i].Address.Atype = LePublicAddress
 		} else {
-			ret[i].Address.Atype = LePrivateAddress
+			ret[i].Address.Atype = LeRandomAddress
 		}
 		// Read the AD Structure data, length first
 		b, err = rd.ReadByte()

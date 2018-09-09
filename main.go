@@ -66,7 +66,9 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 			case "public":
 				atype = hci.LePublicAddress
 			case "private":
-				atype = hci.LePrivateAddress
+				fallthrough
+			case "random":
+				atype = hci.LeRandomAddress
 			default:
 				return nil, fmt.Errorf("Invalid address type \"%s\"", parts[1])
 			}
@@ -282,8 +284,8 @@ func main() {
 	fmt.Printf("\nFound %d devices:\n", len(collected))
 	for key, val := range collected {
 		addrstr := ""
-		if key.Atype == hci.LePrivateAddress {
-			addrstr = fmt.Sprintf("%s,private", key.String())
+		if key.Atype == hci.LeRandomAddress {
+			addrstr = fmt.Sprintf("%s,random", key.String())
 		} else {
 			addrstr = fmt.Sprintf("%s", key.String())
 		}

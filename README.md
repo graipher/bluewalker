@@ -33,10 +33,10 @@ does only passive scanning, active scanning can be turned on with `-active`
 parameter.
 
 To display information only about devices with given address, use
-`-filter-addr <address>`. Note that if device is advertising with private
-(random) address, add the address type after comma to the address string. 
+`-filter-addr <address>`. Note that if device is advertising with random
+(private) address, add the address type after comma to the address string. 
 Multiple addresses can be given if they are separated by semicolons. 
-For example: `sudo ./bluewalker -device hci0 -filter-addr "4f:c0:f1:51:4f:22,private;57:68:4b:42:45:0a,private"`
+For example: `sudo ./bluewalker -device hci0 -filter-addr "4f:c0:f1:51:4f:22,random;57:68:4b:42:45:0a,random"`
 
 To filter devices based on the vendor specific advertising data, use 
 `-filter-vendor <data>`, where data is matched against the start of vendor
