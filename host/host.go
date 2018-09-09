@@ -22,6 +22,7 @@ type exec struct {
 
 //ScanReport contains information about a device found on scanning
 type ScanReport struct {
+	Type    hci.AdvType
 	Address hci.BtAddress
 	Rssi    int8
 	Data    []*hci.AdStructure

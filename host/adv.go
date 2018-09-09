@@ -48,6 +48,7 @@ func handleAdvertisingReport(ch chan *ScanReport, filters adfilters, data []byte
 		scanReport.Address = rep.Address
 		scanReport.Data = rep.Data
 		scanReport.Rssi = rep.Rssi
+		scanReport.Type = rep.EventType
 
 		// we can't block here as we are running on event loop goroutine.
 		// hence check if the channel is writable.
