@@ -117,6 +117,14 @@ func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
 	return filters, nil
 }
 
+func formatAddress(addr hci.BtAddress) string {
+	addrstr := fmt.Sprintf("%s", addr.String())
+	if addr.Atype == hci.LeRandomAddress {
+		addrstr += ",random"
+	}
+	return addrstr
+}
+
 func checkFlag(flags byte, flag int) bool {
 	return (int(flags) & flag) == flag
 }
@@ -157,6 +165,17 @@ func decodeAdFlags(flags []byte) string {
 	str = str[:len(str)-1]
 	str += ")"
 	return str
+}
+
+func decodeDeviceAddress(data []byte) string {
+	if len(data) != 7 {
+		return "(invalid)"
+	}
+	addr := hci.ToBtAddress(data[1:])
+	if data[0]&0x01 == 0x01 {
+		addr.Atype = hci.LeRandomAddress
+	}
+	return formatAddress(addr)
 }
 
 func main() {
@@ -283,13 +302,7 @@ func main() {
 
 	fmt.Printf("\nFound %d devices:\n", len(collected))
 	for key, val := range collected {
-		addrstr := ""
-		if key.Atype == hci.LeRandomAddress {
-			addrstr = fmt.Sprintf("%s,random", key.String())
-		} else {
-			addrstr = fmt.Sprintf("%s", key.String())
-		}
-		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", addrstr, val.rssi, val.lastSeen.Format(time.Stamp))
+		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", formatAddress(key), val.rssi, val.lastSeen.Format(time.Stamp))
 		fmt.Printf("Events: ")
 		for i, t := range val.types {
 			if i > 0 {
@@ -307,6 +320,8 @@ func main() {
 				fallthrough
 			case hci.AdShortenedLocalName:
 				fmt.Printf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data))
+			case hci.AdDeviceAddress:
+				fmt.Printf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data))
 			default:
 				fmt.Printf("\t%s\n", ad.String())
 			}
