@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 	"gitlab.com/jtaimisto/bluewalker/host"
+	"gitlab.com/jtaimisto/bluewalker/ruuvi"
 )
 
 // Command line settings
@@ -28,6 +30,7 @@ type settings struct {
 	addrFilter   string
 	vendorFilter string
 	adTypeFilter string
+	ruuvi        bool
 }
 
 // Information about found device
@@ -49,6 +52,7 @@ func init() {
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
+	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
 }
 
 func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
@@ -178,6 +182,102 @@ func decodeDeviceAddress(data []byte) string {
 	return formatAddress(addr)
 }
 
+//print the collected information about found devices
+func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
+	fmt.Printf("\nFound %d devices:\n", len(infoMap))
+	for key, val := range infoMap {
+		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", formatAddress(key), val.rssi, val.lastSeen.Format(time.Stamp))
+		fmt.Printf("Events: ")
+		for i, t := range val.types {
+			if i > 0 {
+				fmt.Printf(",")
+			}
+			fmt.Printf("%s", t.String())
+		}
+		fmt.Printf("\n")
+		fmt.Printf("Advertising Data Structures:\n")
+		for _, ad := range val.structures {
+			switch ad.Typ {
+			case hci.AdFlags:
+				fmt.Printf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data))
+			case hci.AdCompleteLocalName:
+				fallthrough
+			case hci.AdShortenedLocalName:
+				fmt.Printf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data))
+			case hci.AdDeviceAddress:
+				fmt.Printf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data))
+			default:
+				fmt.Printf("\t%s\n", ad.String())
+			}
+		}
+	}
+}
+
+type loopFunc func(chan *host.ScanReport)
+
+//listen for ruuvi tag advertisments and print out the decoded information
+func ruuviLoop(reportChan chan *host.ScanReport) {
+	for sr := range reportChan {
+		for _, ads := range sr.Data {
+			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
+				ruuvi, err := ruuvi.Unmarshall(ads.Data)
+				if err != nil {
+					log.Printf("Unable to parse ruuvi data: %s\n", err.Error())
+					continue
+				}
+				fmt.Printf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(sr.Address), sr.Rssi)
+				fmt.Printf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", ruuvi.Humidity, ruuvi.Temperature, ruuvi.Pressure, ruuvi.Voltage)
+				fmt.Printf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", ruuvi.AccelerationX, ruuvi.AccelerationY, ruuvi.AccelerationZ)
+			}
+		}
+	}
+}
+
+//listen for incoming scan reports, collect data and print it once the channel closes
+func collectorLoop(reportChan chan *host.ScanReport) {
+	collected := make(map[hci.BtAddress]*foundDevice)
+	for sr := range reportChan {
+		dev, found := collected[sr.Address]
+		if !found {
+			if !cmdline.debug {
+				fmt.Printf(".")
+			}
+			ndev := &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
+			ndev.types = make([]hci.AdvType, 1, 2)
+			ndev.types[0] = sr.Type
+			collected[sr.Address] = ndev
+		} else {
+			for _, ads := range sr.Data {
+				discard := false
+				for _, s := range dev.structures {
+					// Do not add the data if we already have the
+					// exact data
+					if s.Typ == ads.Typ && bytes.Equal(s.Data, ads.Data) {
+						discard = true
+						break
+					}
+				}
+				if !discard {
+					dev.structures = append(dev.structures, ads)
+				}
+			}
+			newType := true
+			for _, t := range dev.types {
+				if t == sr.Type {
+					newType = false
+					break
+				}
+			}
+			if newType {
+				dev.types = append(dev.types, sr.Type)
+			}
+			dev.rssi = sr.Rssi
+			dev.lastSeen = time.Now()
+		}
+	}
+	printCollectedInfo(collected)
+}
+
 func main() {
 
 	flag.Parse()
@@ -191,6 +291,10 @@ func main() {
 	}
 	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
+		if cmdline.ruuvi {
+			fmt.Printf("Address filters not supported on Ruuvi tag mode\n")
+			os.Exit(255)
+		}
 		var err error
 		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
 			fmt.Printf("%s\n", err.Error())
@@ -199,6 +303,10 @@ func main() {
 	}
 
 	if cmdline.vendorFilter != "" {
+		if cmdline.ruuvi {
+			fmt.Printf("Vendor filter not supported on Ruuvi tag mode\n")
+			os.Exit(255)
+		}
 		filt, err := parseVendorSpecFilter(cmdline.vendorFilter)
 		if err != nil {
 			fmt.Printf("%s\n", err.Error())
@@ -208,6 +316,10 @@ func main() {
 	}
 
 	if cmdline.adTypeFilter != "" {
+		if cmdline.ruuvi {
+			fmt.Printf("AD type filter not supported on Ruuvi tag mode\n")
+			os.Exit(255)
+		}
 		filt, err := parseAdTypeFilters(cmdline.adTypeFilter)
 		if err != nil {
 			fmt.Printf("%s\n", err.Error())
@@ -216,6 +328,14 @@ func main() {
 		for _, f := range filt {
 			filters = append(filters, f)
 		}
+	}
+
+	var loop loopFunc
+	if cmdline.ruuvi {
+		filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
+		loop = ruuviLoop
+	} else {
+		loop = collectorLoop
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
@@ -242,50 +362,10 @@ func main() {
 		os.Exit(255)
 	}
 
-	collected := make(map[hci.BtAddress]*foundDevice)
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		for sr := range reportChan {
-			dev, found := collected[sr.Address]
-			if !found {
-				if !cmdline.debug {
-					fmt.Printf(".")
-				}
-				ndev := &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
-				ndev.types = make([]hci.AdvType, 1, 2)
-				ndev.types[0] = sr.Type
-				collected[sr.Address] = ndev
-			} else {
-				for _, ads := range sr.Data {
-					discard := false
-					for _, s := range dev.structures {
-						// Do not add the data if we already have the
-						// exact data
-						if s.Typ == ads.Typ && bytes.Equal(s.Data, ads.Data) {
-							discard = true
-							break
-						}
-					}
-					if !discard {
-						dev.structures = append(dev.structures, ads)
-					}
-				}
-				newType := true
-				for _, t := range dev.types {
-					if t == sr.Type {
-						newType = false
-						break
-					}
-				}
-				if newType {
-					dev.types = append(dev.types, sr.Type)
-				}
-				dev.rssi = sr.Rssi
-				dev.lastSeen = time.Now()
-			}
-		}
+		loop(reportChan)
 		wg.Done()
 	}()
 
@@ -299,32 +379,4 @@ func main() {
 	host.StopScanning()
 	host.Deinit()
 	wg.Wait()
-
-	fmt.Printf("\nFound %d devices:\n", len(collected))
-	for key, val := range collected {
-		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", formatAddress(key), val.rssi, val.lastSeen.Format(time.Stamp))
-		fmt.Printf("Events: ")
-		for i, t := range val.types {
-			if i > 0 {
-				fmt.Printf(",")
-			}
-			fmt.Printf("%s", t.String())
-		}
-		fmt.Printf("\n")
-		fmt.Printf("Advertising Data Structures:\n")
-		for _, ad := range val.structures {
-			switch ad.Typ {
-			case hci.AdFlags:
-				fmt.Printf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data))
-			case hci.AdCompleteLocalName:
-				fallthrough
-			case hci.AdShortenedLocalName:
-				fmt.Printf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data))
-			case hci.AdDeviceAddress:
-				fmt.Printf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data))
-			default:
-				fmt.Printf("\t%s\n", ad.String())
-			}
-		}
-	}
 }
