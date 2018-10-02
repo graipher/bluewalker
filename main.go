@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -31,14 +32,16 @@ type settings struct {
 	vendorFilter string
 	adTypeFilter string
 	ruuvi        bool
+	json         bool
 }
 
 // Information about found device
 type foundDevice struct {
-	structures []*hci.AdStructure
-	lastSeen   time.Time
-	rssi       int8
-	types      []hci.AdvType
+	Structures []*hci.AdStructure `json:"data"`
+	LastSeen   time.Time          `json:"last"`
+	Rssi       int8               `json:"rssi"`
+	Types      []hci.AdvType      `json:"types"`
+	Adress     string             `json:"address"`
 }
 
 // Command line settings from user
@@ -53,6 +56,7 @@ func init() {
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
 	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
+	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
 }
 
 func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
@@ -184,11 +188,30 @@ func decodeDeviceAddress(data []byte) string {
 
 //print the collected information about found devices
 func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
+
+	if cmdline.json {
+		size := len(infoMap)
+		devices := make([]*foundDevice, size)
+		i := 0
+		for key, val := range infoMap {
+			val.Adress = key.String()
+			devices[i] = val
+			i++
+		}
+		json, err := json.MarshalIndent(devices, "", "\t")
+		if err != nil {
+			fmt.Printf("Error while creating json output: %s\n", err.Error())
+		} else {
+			fmt.Printf("%s\n", json)
+		}
+		return
+	}
+
 	fmt.Printf("\nFound %d devices:\n", len(infoMap))
 	for key, val := range infoMap {
-		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", formatAddress(key), val.rssi, val.lastSeen.Format(time.Stamp))
+		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", formatAddress(key), val.Rssi, val.LastSeen.Format(time.Stamp))
 		fmt.Printf("Events: ")
-		for i, t := range val.types {
+		for i, t := range val.Types {
 			if i > 0 {
 				fmt.Printf(",")
 			}
@@ -196,7 +219,7 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
 		}
 		fmt.Printf("\n")
 		fmt.Printf("Advertising Data Structures:\n")
-		for _, ad := range val.structures {
+		for _, ad := range val.Structures {
 			switch ad.Typ {
 			case hci.AdFlags:
 				fmt.Printf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data))
@@ -220,14 +243,31 @@ func ruuviLoop(reportChan chan *host.ScanReport) {
 	for sr := range reportChan {
 		for _, ads := range sr.Data {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
-				ruuvi, err := ruuvi.Unmarshall(ads.Data)
+				ruuviData, err := ruuvi.Unmarshall(ads.Data)
 				if err != nil {
 					log.Printf("Unable to parse ruuvi data: %s\n", err.Error())
 					continue
 				}
-				fmt.Printf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(sr.Address), sr.Rssi)
-				fmt.Printf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", ruuvi.Humidity, ruuvi.Temperature, ruuvi.Pressure, ruuvi.Voltage)
-				fmt.Printf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", ruuvi.AccelerationX, ruuvi.AccelerationY, ruuvi.AccelerationZ)
+				if cmdline.json {
+					dat := struct {
+						Address string      `json:"address"`
+						Rssi    int8        `json:"rssi"`
+						Values  *ruuvi.Data `json:"sensors"`
+					}{
+						sr.Address.String(), sr.Rssi, ruuviData,
+					}
+					json, err := json.MarshalIndent(dat, "", "\t")
+					if err != nil {
+						fmt.Printf("Unable to create json data: %s\n", err.Error())
+					} else {
+						fmt.Printf("%s\n", json)
+
+					}
+				} else {
+					fmt.Printf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(sr.Address), sr.Rssi)
+					fmt.Printf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", ruuviData.Humidity, ruuviData.Temperature, ruuviData.Pressure, ruuviData.Voltage)
+					fmt.Printf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", ruuviData.AccelerationX, ruuviData.AccelerationY, ruuviData.AccelerationZ)
+				}
 			}
 		}
 	}
@@ -242,14 +282,14 @@ func collectorLoop(reportChan chan *host.ScanReport) {
 			if !cmdline.debug {
 				fmt.Printf(".")
 			}
-			ndev := &foundDevice{structures: sr.Data, rssi: sr.Rssi, lastSeen: time.Now()}
-			ndev.types = make([]hci.AdvType, 1, 2)
-			ndev.types[0] = sr.Type
+			ndev := &foundDevice{Structures: sr.Data, Rssi: sr.Rssi, LastSeen: time.Now()}
+			ndev.Types = make([]hci.AdvType, 1, 2)
+			ndev.Types[0] = sr.Type
 			collected[sr.Address] = ndev
 		} else {
 			for _, ads := range sr.Data {
 				discard := false
-				for _, s := range dev.structures {
+				for _, s := range dev.Structures {
 					// Do not add the data if we already have the
 					// exact data
 					if s.Typ == ads.Typ && bytes.Equal(s.Data, ads.Data) {
@@ -258,21 +298,21 @@ func collectorLoop(reportChan chan *host.ScanReport) {
 					}
 				}
 				if !discard {
-					dev.structures = append(dev.structures, ads)
+					dev.Structures = append(dev.Structures, ads)
 				}
 			}
 			newType := true
-			for _, t := range dev.types {
+			for _, t := range dev.Types {
 				if t == sr.Type {
 					newType = false
 					break
 				}
 			}
 			if newType {
-				dev.types = append(dev.types, sr.Type)
+				dev.Types = append(dev.Types, sr.Type)
 			}
-			dev.rssi = sr.Rssi
-			dev.lastSeen = time.Now()
+			dev.Rssi = sr.Rssi
+			dev.LastSeen = time.Now()
 		}
 	}
 	printCollectedInfo(collected)
