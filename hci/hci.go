@@ -2,6 +2,7 @@ package hci
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 )
@@ -50,6 +51,11 @@ func (adv AdvType) String() string {
 	default:
 		return fmt.Sprintf("Unknown (%.2x)", int(adv))
 	}
+}
+
+//MarshalJSON marshals AdvType into JSON
+func (adv AdvType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(adv.String())
 }
 
 //AdvertisingReport represents data parsed from LE Advertising Report
@@ -226,8 +232,8 @@ func (ad AdType) String() string {
 // AdStructure defines advertising data
 // See Bluetooth 5.0, vol 3, part C, ch 11
 type AdStructure struct {
-	Typ  AdType
-	Data []byte
+	Typ  AdType `json:"type"`
+	Data []byte `json:"data"`
 }
 
 func (ad *AdStructure) String() string {

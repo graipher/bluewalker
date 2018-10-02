@@ -35,13 +35,13 @@ const (
 //Data contains measurement information parsed from the vendor specific
 //data sent by Ruuvi tag
 type Data struct {
-	Humidity      float32
-	Temperature   float32
-	Pressure      int
-	AccelerationX float32
-	AccelerationY float32
-	AccelerationZ float32
-	Voltage       int
+	Humidity      float32 `json:"humidity"`
+	Temperature   float32 `json:"temperature"`
+	Pressure      int     `json:"pressure"`
+	AccelerationX float32 `json:"accelerationX"`
+	AccelerationY float32 `json:"accelerationY"`
+	AccelerationZ float32 `json:"accelerationZ"`
+	Voltage       int     `json:"voltage"`
 }
 
 func readAccl(rd *bytes.Reader) (float32, error) {
