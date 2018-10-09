@@ -137,42 +137,48 @@ func checkFlag(flags byte, flag int) bool {
 	return (int(flags) & flag) == flag
 }
 
+//Description for each flag in AD Flags bitmask
+var flagNames = []struct {
+	flag int
+	name string
+}{
+	{hci.AdFlagLimitedDisc, "LE Limited Discoverable"},
+	{hci.AdFlagGeneralDisc, "LE General Discoverable"},
+	{hci.AdFlagNoBrEdr, "BR/EDR not supported"},
+	{hci.AdFlagLeBrEdrController, "LE & BR/EDR (controller)"},
+	{hci.AdFlagLeBrEdrHost, "LE & BR/EDR (host)"},
+}
+
 func decodeAdFlags(flags []byte) string {
 	if len(flags) != 1 {
 		return "(Invalid)"
 	}
-	str := ""
-	str += "["
+	str := strings.Builder{}
+	str.WriteString("[")
 	for i := 7; i >= 0; i-- {
 		if checkFlag(flags[0], (0x01 << uint8(i))) {
-			str += "1"
+			str.WriteString("1")
 		} else {
-			str += "0"
+			str.WriteString("0")
 		}
 	}
-	str += "] "
+	str.WriteString("]")
 	if flags[0] == 0 {
-		return str
+		return str.String()
 	}
-	str += "("
-	if checkFlag(flags[0], hci.AdFlagLimitedDisc) {
-		str += "LE Limited Discoverable,"
+	str.WriteString("(")
+	hasFlag := false
+	for _, fl := range flagNames {
+		if checkFlag(flags[0], fl.flag) {
+			if hasFlag {
+				str.WriteString(",")
+			}
+			str.WriteString(fl.name)
+			hasFlag = true
+		}
 	}
-	if checkFlag(flags[0], hci.AdFlagGeneralDisc) {
-		str += "LE General Discoverable,"
-	}
-	if checkFlag(flags[0], hci.AdFlagNoBrEdr) {
-		str += "BR/EDR not supported,"
-	}
-	if checkFlag(flags[0], hci.AdFlagLeBrEdrController) {
-		str += "LE & BR/EDR (controller),"
-	}
-	if checkFlag(flags[0], hci.AdFlagLeBrEdrHost) {
-		str += "LE & BR/EDR (host),"
-	}
-	str = str[:len(str)-1]
-	str += ")"
-	return str
+	str.WriteString(")")
+	return str.String()
 }
 
 func decodeDeviceAddress(data []byte) string {
