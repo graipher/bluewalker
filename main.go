@@ -238,6 +238,28 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
 
 type loopFunc func(chan *host.ScanReport)
 
+func ruuviOuputJSON(data *ruuvi.Data, address hci.BtAddress, rssi int8) string {
+
+	json, err := json.MarshalIndent(struct {
+		Device hci.BtAddress `json:"device"`
+		Rssi   int8          `json:"rssi"`
+		Values *ruuvi.Data   `json:"sensors"`
+	}{address, rssi, data}, "", "\t")
+	if err != nil {
+		return fmt.Sprintf("Unable to create JSON data (%s)", err.Error())
+	}
+	return string(json)
+}
+
+func ruuviOutput(data *ruuvi.Data, address hci.BtAddress, rssi int8) string {
+	bld := strings.Builder{}
+
+	bld.WriteString(fmt.Sprintf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(address), rssi))
+	bld.WriteString(fmt.Sprintf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", data.Humidity, data.Temperature, data.Pressure, data.Voltage))
+	bld.WriteString(fmt.Sprintf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ))
+	return bld.String()
+}
+
 //listen for ruuvi tag advertisments and print out the decoded information
 func ruuviLoop(reportChan chan *host.ScanReport) {
 	for sr := range reportChan {
@@ -248,26 +270,13 @@ func ruuviLoop(reportChan chan *host.ScanReport) {
 					log.Printf("Unable to parse ruuvi data: %s\n", err.Error())
 					continue
 				}
+				output := ""
 				if cmdline.json {
-					dat := struct {
-						Device hci.BtAddress `json:"device"`
-						Rssi   int8          `json:"rssi"`
-						Values *ruuvi.Data   `json:"sensors"`
-					}{
-						sr.Address, sr.Rssi, ruuviData,
-					}
-					json, err := json.MarshalIndent(dat, "", "\t")
-					if err != nil {
-						fmt.Printf("Unable to create json data: %s\n", err.Error())
-					} else {
-						fmt.Printf("%s\n", json)
-
-					}
+					output = ruuviOuputJSON(ruuviData, sr.Address, sr.Rssi)
 				} else {
-					fmt.Printf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(sr.Address), sr.Rssi)
-					fmt.Printf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", ruuviData.Humidity, ruuviData.Temperature, ruuviData.Pressure, ruuviData.Voltage)
-					fmt.Printf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", ruuviData.AccelerationX, ruuviData.AccelerationY, ruuviData.AccelerationZ)
+					output = ruuviOutput(ruuviData, sr.Address, sr.Rssi)
 				}
+				fmt.Printf("%s\n", output)
 			}
 		}
 	}
