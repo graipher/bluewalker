@@ -11,7 +11,7 @@ devices.
 
 Bluewalker needs `golang.org/x/sys/unix` package to be installed, it can
 be installed with `go get golang.org/x/sys/unix`. After this package is
-installed, Bluewalker can be compiled (on linux) with `go install gitlab.com/jtaimisto/bluewalker`  
+installed, Bluewalker can be compiled (on linux) with `go install gitlab.com/jtaimisto/bluewalker`. You should use go version 1.10 or higher.  
 
 ## Usage
 
@@ -104,3 +104,93 @@ Ruuvi device dc:15:32:fd:71:1f,random (RSSI:-61 dBm)
         Humidity: 53.00% Temperature: 21.41C Pressure: 99711Pa Battery voltage: 3139mV
         Acceleration X: 0.01G, Y: -0.02G, Z: 1.00G
 ```
+
+## JSON output
+
+If `-json` command line option is given, bluewalker will produce JSON encoded
+output. This applies both to _ruuvi_ and normal mode.
+
+### JSON definitions
+
+When scanning in JSON mode, the scan results are printed to stdout as JSON
+array, where each element on the array represents one device and information
+gathered from it during scanning.
+```
+	{
+		"data": [
+			{
+				"type": 1,
+				"data": "BA=="
+			},
+			{
+				"type": 255,
+				"data": "mQQDYxJPwZ7/9AAABCALIwAAAAA="
+			},
+			{
+				"type": 255,
+				"data": "mQQDYxJOwZr/+P/8BAwLNQAAAAA="
+			},
+			{
+				"type": 255,
+				"data": "mQQDYxJQwaX/9AAABBwLIwAAAAA="
+			}
+		],
+		"last": "2018-10-09T17:30:44.100611924+03:00",
+		"rssi": -75,
+		"types": [
+			"Non connectable undirected"
+		],
+		"device": {
+			"address": "c8:c6:4b:bd:12:10",
+			"type": "LE Random"
+		}
+	}
+```
+
+|JSON element|Value|
+|-------|-----|
+|data|Array of all different advertising data received from the device|
+|data:type | The AD Type field value (in decimal)|
+|data:data | The received advertising bytes (base64 encoded string)|
+|last| timestamp when data was last received from this device|
+|RSSI| RSSI from the last received packet|
+|types|Array of strings containing names of different advertising event types received|
+|device| Address of the device where the data was received |
+|device:address| Bluetooth address as string |
+|device:type| Bluetooth address type (`LE Public`, `LE Random`)|
+
+
+When scanning for ruuvi tags, the information about ruuvi tag is printed as
+JSON object every time data is received.
+```
+{
+	"device": {
+		"address": "c8:c6:4b:bd:12:10",
+		"type": "LE Random"
+	},
+	"rssi": -69,
+	"sensors": {
+		"humidity": 49.5,
+		"temperature": 18.77,
+		"pressure": 99557,
+		"accelerationX": 0,
+		"accelerationY": -0.008,
+		"accelerationZ": 1.06,
+		"voltage": 2845
+	}
+}
+```
+|JSON element|Value|
+|------------|-----|
+|device|Address of the Ruuvi tag|
+|device:address|Bluetooth address as string|
+|device:type| Bluetooth address type (`LE Public`, `LE Random`)|
+|rssi|RSSI value from the received advertising event|
+|sensors|Values for all the ruuvi tag sensors|
+|sensors:humidity|Humidity value (float)|
+|sensors:temperature|Temperature in C (float)|
+|sensors:pressure|Pressure in Pa (int)|
+|sensors:accelerationX|Acceleration for X axis in G (float)|
+|sensors:accelerationY|Acceleration for Y axis in G (float)|
+|sensors:accelerationZ|Acceleration for Y axis in G (float)|
+|sensors:voltage|Battery voltage in mV (int)|
