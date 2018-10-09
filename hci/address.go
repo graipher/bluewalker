@@ -2,6 +2,7 @@ package hci
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -17,6 +18,15 @@ type BtAddress struct {
 
 func (ba BtAddress) String() string {
 	return fmt.Sprintf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", ba.raw[5], ba.raw[4], ba.raw[3], ba.raw[2], ba.raw[1], ba.raw[0])
+}
+
+//MarshalJSON marshals BtAddress into JSON
+func (ba BtAddress) MarshalJSON() ([]byte, error) {
+
+	return json.Marshal(struct {
+		Address string `json:"address"`
+		Type    string `json:"type"`
+	}{ba.String(), ba.Atype.String()})
 }
 
 // Contstants for Bluetooth address type

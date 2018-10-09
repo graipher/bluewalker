@@ -41,7 +41,7 @@ type foundDevice struct {
 	LastSeen   time.Time          `json:"last"`
 	Rssi       int8               `json:"rssi"`
 	Types      []hci.AdvType      `json:"types"`
-	Adress     string             `json:"address"`
+	Device     hci.BtAddress      `json:"device"`
 }
 
 // Command line settings from user
@@ -194,7 +194,7 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
 		devices := make([]*foundDevice, size)
 		i := 0
 		for key, val := range infoMap {
-			val.Adress = key.String()
+			val.Device = key
 			devices[i] = val
 			i++
 		}
@@ -250,11 +250,11 @@ func ruuviLoop(reportChan chan *host.ScanReport) {
 				}
 				if cmdline.json {
 					dat := struct {
-						Address string      `json:"address"`
-						Rssi    int8        `json:"rssi"`
-						Values  *ruuvi.Data `json:"sensors"`
+						Device hci.BtAddress `json:"device"`
+						Rssi   int8          `json:"rssi"`
+						Values *ruuvi.Data   `json:"sensors"`
 					}{
-						sr.Address.String(), sr.Rssi, ruuviData,
+						sr.Address, sr.Rssi, ruuviData,
 					}
 					json, err := json.MarshalIndent(dat, "", "\t")
 					if err != nil {
