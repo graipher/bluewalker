@@ -337,7 +337,7 @@ func main() {
 
 	flag.Parse()
 	if cmdline.device == "" {
-		fmt.Printf("Missing device name\n")
+		fmt.Fprintf(os.Stderr, "Missing device name\n")
 		os.Exit(255)
 	}
 
@@ -347,24 +347,24 @@ func main() {
 	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
 		if cmdline.ruuvi {
-			fmt.Printf("Address filters not supported on Ruuvi tag mode\n")
+			fmt.Fprintf(os.Stderr, "Address filters not supported on Ruuvi tag mode\n")
 			os.Exit(255)
 		}
 		var err error
 		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
-			fmt.Printf("%s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			os.Exit(255)
 		}
 	}
 
 	if cmdline.vendorFilter != "" {
 		if cmdline.ruuvi {
-			fmt.Printf("Vendor filter not supported on Ruuvi tag mode\n")
+			fmt.Fprintf(os.Stderr, "Vendor filter not supported on Ruuvi tag mode\n")
 			os.Exit(255)
 		}
 		filt, err := parseVendorSpecFilter(cmdline.vendorFilter)
 		if err != nil {
-			fmt.Printf("%s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			os.Exit(255)
 		}
 		filters = append(filters, filt)
@@ -372,12 +372,12 @@ func main() {
 
 	if cmdline.adTypeFilter != "" {
 		if cmdline.ruuvi {
-			fmt.Printf("AD type filter not supported on Ruuvi tag mode\n")
+			fmt.Fprintf(os.Stderr, "AD type filter not supported on Ruuvi tag mode\n")
 			os.Exit(255)
 		}
 		filt, err := parseAdTypeFilters(cmdline.adTypeFilter)
 		if err != nil {
-			fmt.Printf("%s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			os.Exit(255)
 		}
 		for _, f := range filt {
@@ -399,20 +399,20 @@ func main() {
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
-		fmt.Printf("Error while opening RAW HCI socket: %s\nAre you running as root and have you run sudo hciconfig %s down?\n", err.Error(), cmdline.device)
+		fmt.Fprintf(os.Stderr, "Error while opening RAW HCI socket: %s\nAre you running as root and have you run sudo hciconfig %s down?\n", err.Error(), cmdline.device)
 		os.Exit(255)
 	}
 
 	host := host.New(raw)
 	if err = host.Init(); err != nil {
-		fmt.Printf("Unable to initialize host: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to initialize host: %s\n", err.Error())
 		host.Deinit()
 		os.Exit(255)
 	}
 
 	reportChan, err := host.StartScanning(cmdline.active, filters)
 	if err != nil {
-		fmt.Printf("Unable to start scanning: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to start scanning: %s\n", err.Error())
 		host.Deinit()
 		os.Exit(255)
 	}
