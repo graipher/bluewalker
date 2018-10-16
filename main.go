@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -33,6 +35,39 @@ type settings struct {
 	adTypeFilter string
 	ruuvi        bool
 	json         bool
+	socketPath   string
+}
+
+type output struct {
+	wr            io.Writer
+	cl            io.Closer
+	humanReadable bool
+}
+
+func (out *output) write(data string) {
+	out.wr.Write([]byte(data))
+}
+
+func (out *output) isHumanReadable() bool {
+	return out.humanReadable
+}
+
+func (out *output) Close() {
+	if out.cl != nil {
+		out.cl.Close()
+	}
+}
+
+func outputForSocket(path string) (*output, error) {
+	unixConn, err := net.Dial("unix", path)
+	if err != nil {
+		return nil, err
+	}
+	return &output{wr: unixConn, cl: unixConn, humanReadable: false}, nil
+}
+
+func defaultOutput() *output {
+	return &output{wr: os.Stdout, humanReadable: true}
 }
 
 // Information about found device
@@ -57,6 +92,7 @@ func init() {
 	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
 	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
+	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
 }
 
 func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
@@ -193,7 +229,7 @@ func decodeDeviceAddress(data []byte) string {
 }
 
 //print the collected information about found devices
-func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
+func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 
 	if cmdline.json {
 		size := len(infoMap)
@@ -204,57 +240,76 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice) {
 			devices[i] = val
 			i++
 		}
-		json, err := json.MarshalIndent(devices, "", "\t")
+		var jdata []byte
+		var err error
+		if out.isHumanReadable() {
+			jdata, err = json.MarshalIndent(devices, "", "\t")
+		} else {
+			jdata, err = json.Marshal(devices)
+		}
 		if err != nil {
 			fmt.Printf("Error while creating json output: %s\n", err.Error())
 		} else {
-			fmt.Printf("%s\n", json)
+			out.write(string(jdata))
 		}
 		return
 	}
 
-	fmt.Printf("\nFound %d devices:\n", len(infoMap))
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("\nFound %d devices:\n", len(infoMap)))
 	for key, val := range infoMap {
-		fmt.Printf("Device %s (RSSI:%d dBm; last seen %s):\n", formatAddress(key), val.Rssi, val.LastSeen.Format(time.Stamp))
-		fmt.Printf("Events: ")
+		sb.WriteString(fmt.Sprintf("Device %s (RSSI:%d dBm; last seen %s):\nEvents:", formatAddress(key), val.Rssi, val.LastSeen.Format(time.Stamp)))
 		for i, t := range val.Types {
 			if i > 0 {
-				fmt.Printf(",")
+				sb.WriteString(fmt.Sprintf(","))
 			}
-			fmt.Printf("%s", t.String())
+			sb.WriteString(fmt.Sprintf("%s", t.String()))
 		}
-		fmt.Printf("\n")
-		fmt.Printf("Advertising Data Structures:\n")
+		sb.WriteString(fmt.Sprintf("\n"))
+		sb.WriteString(fmt.Sprintf("Advertising Data Structures:\n"))
 		for _, ad := range val.Structures {
 			switch ad.Typ {
 			case hci.AdFlags:
-				fmt.Printf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data))
+				sb.WriteString(fmt.Sprintf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data)))
 			case hci.AdCompleteLocalName:
 				fallthrough
 			case hci.AdShortenedLocalName:
-				fmt.Printf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data))
+				sb.WriteString(fmt.Sprintf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data)))
 			case hci.AdDeviceAddress:
-				fmt.Printf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data))
+				sb.WriteString(fmt.Sprintf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data)))
 			default:
-				fmt.Printf("\t%s\n", ad.String())
+				sb.WriteString(fmt.Sprintf("\t%s\n", ad.String()))
 			}
 		}
 	}
+	out.write(sb.String())
 }
 
-type loopFunc func(chan *host.ScanReport)
+type loopFunc func(chan *host.ScanReport, *output)
 
-func ruuviOuputJSON(data *ruuvi.Data, address hci.BtAddress, rssi int8) string {
+func ruuviOuputJSON(data *ruuvi.Data, address hci.BtAddress, rssi int8, indent bool) string {
 
-	json, err := json.MarshalIndent(struct {
+	val := struct {
 		Device hci.BtAddress `json:"device"`
 		Rssi   int8          `json:"rssi"`
 		Values *ruuvi.Data   `json:"sensors"`
-	}{address, rssi, data}, "", "\t")
-	if err != nil {
-		return fmt.Sprintf("Unable to create JSON data (%s)", err.Error())
+	}{address, rssi, data}
+
+	var jdata []byte
+	var err error
+	if indent {
+		jdata, err = json.MarshalIndent(val, "", "\t")
+	} else {
+		jdata, err = json.Marshal(val)
+		if err == nil {
+			jdata = []byte(string(jdata) + "\n")
+		}
 	}
-	return string(json)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to create ruuvi JSON data (%s)", err.Error())
+		return ""
+	}
+	return string(jdata)
 }
 
 func ruuviOutput(data *ruuvi.Data, address hci.BtAddress, rssi int8) string {
@@ -267,7 +322,7 @@ func ruuviOutput(data *ruuvi.Data, address hci.BtAddress, rssi int8) string {
 }
 
 //listen for ruuvi tag advertisments and print out the decoded information
-func ruuviLoop(reportChan chan *host.ScanReport) {
+func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 	for sr := range reportChan {
 		for _, ads := range sr.Data {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
@@ -278,18 +333,18 @@ func ruuviLoop(reportChan chan *host.ScanReport) {
 				}
 				output := ""
 				if cmdline.json {
-					output = ruuviOuputJSON(ruuviData, sr.Address, sr.Rssi)
+					output = ruuviOuputJSON(ruuviData, sr.Address, sr.Rssi, out.isHumanReadable())
 				} else {
 					output = ruuviOutput(ruuviData, sr.Address, sr.Rssi)
 				}
-				fmt.Printf("%s\n", output)
+				out.write(output)
 			}
 		}
 	}
 }
 
 //listen for incoming scan reports, collect data and print it once the channel closes
-func collectorLoop(reportChan chan *host.ScanReport) {
+func collectorLoop(reportChan chan *host.ScanReport, out *output) {
 	collected := make(map[hci.BtAddress]*foundDevice)
 	for sr := range reportChan {
 		dev, found := collected[sr.Address]
@@ -330,7 +385,7 @@ func collectorLoop(reportChan chan *host.ScanReport) {
 			dev.LastSeen = time.Now()
 		}
 	}
-	printCollectedInfo(collected)
+	printCollectedInfo(collected, out)
 }
 
 func main() {
@@ -385,6 +440,19 @@ func main() {
 		}
 	}
 
+	var out *output
+	if cmdline.socketPath != "" {
+		var err error
+		out, err = outputForSocket(cmdline.socketPath)
+		if err != nil {
+			fmt.Printf("Unable to open unix socket at %s (%s)\n", cmdline.socketPath, err.Error())
+			os.Exit(255)
+		}
+		defer out.Close()
+	} else {
+		out = defaultOutput()
+	}
+
 	var loop loopFunc
 	if cmdline.ruuvi {
 		filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
@@ -420,7 +488,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		loop(reportChan)
+		loop(reportChan, out)
 		wg.Done()
 	}()
 
