@@ -29,6 +29,37 @@ func (ba BtAddress) MarshalJSON() ([]byte, error) {
 	}{ba.String(), ba.Atype.String()})
 }
 
+//UnmarshalJSON parses the JSON encoded Bluetooth Address (as returned by
+//ba.MarshalJSON()) and sets values of this address as those parsed
+func (ba *BtAddress) UnmarshalJSON(b []byte) error {
+
+	s := struct {
+		Address string `json:"address"`
+		Type    string `json:"type"`
+	}{}
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	tmp, err := BtAddressFromString(s.Address)
+	if err != nil {
+		return err
+	}
+	ba.raw = tmp.raw
+	switch s.Type {
+	case "LE Public":
+		ba.Atype = LePublicAddress
+	case "LE Random":
+		ba.Atype = LeRandomAddress
+	case "BR/EDR":
+		ba.Atype = BrEdrAddress
+	default:
+		return fmt.Errorf("Invalid bluetooth address type")
+	}
+
+	return nil
+}
+
 // Contstants for Bluetooth address type
 const (
 	LePublicAddress BtAddressType = 0x00

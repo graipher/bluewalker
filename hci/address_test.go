@@ -1,6 +1,9 @@
 package hci
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestFromString(t *testing.T) {
 
@@ -44,5 +47,26 @@ func TestFromString(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestJSONSimple(t *testing.T) {
+
+	baddr, _ := BtAddressFromString("00:11:22:33:44:55")
+	baddr.Atype = LeRandomAddress
+
+	encoded, err := json.Marshal(baddr)
+	if err != nil {
+		t.Errorf("Unable to Marshal Address to JSON: %s", err.Error())
+	}
+
+	decoded := BtAddress{}
+	err = json.Unmarshal(encoded, &decoded)
+	if err != nil {
+		t.Errorf("Unable to Unmarshal Address from JSON: %s", err.Error())
+	}
+
+	if decoded != baddr {
+		t.Errorf("Decoded address (%+v) is not same is encoded address (%+v)", decoded, baddr)
 	}
 }
