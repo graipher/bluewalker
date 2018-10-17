@@ -36,18 +36,26 @@ const (
 	ScanRsp       AdvType = 0x04
 )
 
+const (
+	connUndirectedStr = "Connectable undirected"
+	connDirectedStr   = "Connectable directed"
+	scanUndirectedStr = "Scannable undirected"
+	nonConnUndirStr   = "Non connectable undirected"
+	scanRspStr        = "Scan response"
+)
+
 func (adv AdvType) String() string {
 	switch adv {
 	case AdvInd:
-		return "Connectable undirected"
+		return connUndirectedStr
 	case AdvDirectInd:
-		return "Connectable directed"
+		return connDirectedStr
 	case AdvScanInd:
-		return "Scannable undirected"
+		return scanUndirectedStr
 	case AdvNonconnInd:
-		return "Non connectable undirected"
+		return nonConnUndirStr
 	case ScanRsp:
-		return "Scan Response"
+		return scanRspStr
 	default:
 		return fmt.Sprintf("Unknown (%.2x)", int(adv))
 	}
@@ -56,6 +64,32 @@ func (adv AdvType) String() string {
 //MarshalJSON marshals AdvType into JSON
 func (adv AdvType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(adv.String())
+}
+
+//UnmarshalJSON decodes the JSON encoded AdvertisingType
+func (adv *AdvType) UnmarshalJSON(b []byte) error {
+
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+
+	switch str {
+	case connUndirectedStr:
+		*adv = AdvInd
+	case connDirectedStr:
+		*adv = AdvDirectInd
+	case scanUndirectedStr:
+		*adv = AdvScanInd
+	case nonConnUndirStr:
+		*adv = AdvNonconnInd
+	case scanRspStr:
+		*adv = ScanRsp
+	default:
+		return fmt.Errorf("Invalid Advertising type value")
+	}
+	return nil
 }
 
 //AdvertisingReport represents data parsed from LE Advertising Report
