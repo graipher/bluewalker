@@ -246,6 +246,9 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 			jdata, err = json.MarshalIndent(devices, "", "\t")
 		} else {
 			jdata, err = json.Marshal(devices)
+			if err == nil {
+				jdata = []byte(string(jdata) + "\n")
+			}
 		}
 		if err != nil {
 			fmt.Printf("Error while creating json output: %s\n", err.Error())
