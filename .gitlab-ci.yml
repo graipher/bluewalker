@@ -15,6 +15,7 @@ build-main-app:
   script:
     - cd /go/
     - go install gitlab.com/jtaimisto/bluewalker
+    - go install gitlab.com/jtaimisto/bluewalker/listener
 
 run-tests:
   stage: test
