@@ -445,6 +445,10 @@ func main() {
 
 	var out *output
 	if cmdline.socketPath != "" {
+		if !cmdline.json {
+			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
+			cmdline.json = true
+		}
 		var err error
 		out, err = outputForSocket(cmdline.socketPath)
 		if err != nil {
