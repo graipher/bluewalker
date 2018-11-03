@@ -36,6 +36,7 @@ type settings struct {
 	ruuvi        bool
 	json         bool
 	socketPath   string
+	observer     bool
 }
 
 type output struct {
@@ -144,6 +145,7 @@ func init() {
 	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
+	flag.BoolVar(&cmdline.observer, "observer", false, "Do scanning in observer mode (display advertising packets as they are received)")
 }
 
 func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
@@ -342,6 +344,23 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 	}
 }
 
+func observerLoop(reportChan chan *host.ScanReport, out *output) {
+	for sr := range reportChan {
+		found := &foundDevice{Structures: sr.Data,
+			Rssi:     sr.Rssi,
+			LastSeen: time.Now(),
+			Device:   sr.Address}
+
+		found.Types = []hci.AdvType{sr.Type}
+
+		if cmdline.json {
+			out.writeAsJSON(found)
+		} else {
+			out.write(found.String())
+		}
+	}
+}
+
 //listen for incoming scan reports, collect data and print it once the channel closes
 func collectorLoop(reportChan chan *host.ScanReport, out *output) {
 	collected := make(map[hci.BtAddress]*foundDevice)
@@ -460,6 +479,8 @@ func main() {
 	if cmdline.ruuvi {
 		filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
 		loop = ruuviLoop
+	} else if cmdline.observer {
+		loop = observerLoop
 	} else {
 		loop = collectorLoop
 	}
