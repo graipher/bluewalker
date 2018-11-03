@@ -79,6 +79,34 @@ type foundDevice struct {
 	Device     hci.BtAddress      `json:"device"`
 }
 
+func (dev *foundDevice) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("Device %s (RSSI:%d dBm; last seen %s):\nEvents:", formatAddress(dev.Device), dev.Rssi, dev.LastSeen.Format(time.Stamp)))
+	for i, t := range dev.Types {
+		if i > 0 {
+			sb.WriteString(fmt.Sprintf(","))
+		}
+		sb.WriteString(fmt.Sprintf("%s", t.String()))
+	}
+	sb.WriteString(fmt.Sprintf("\n"))
+	sb.WriteString(fmt.Sprintf("Advertising Data Structures:\n"))
+	for _, ad := range dev.Structures {
+		switch ad.Typ {
+		case hci.AdFlags:
+			sb.WriteString(fmt.Sprintf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data)))
+		case hci.AdCompleteLocalName:
+			fallthrough
+		case hci.AdShortenedLocalName:
+			sb.WriteString(fmt.Sprintf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data)))
+		case hci.AdDeviceAddress:
+			sb.WriteString(fmt.Sprintf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data)))
+		default:
+			sb.WriteString(fmt.Sprintf("\t%s\n", ad.String()))
+		}
+	}
+	return sb.String()
+}
+
 // Command line settings from user
 var cmdline settings
 
@@ -235,8 +263,7 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 		size := len(infoMap)
 		devices := make([]*foundDevice, size)
 		i := 0
-		for key, val := range infoMap {
-			val.Device = key
+		for _, val := range infoMap {
 			devices[i] = val
 			i++
 		}
@@ -260,30 +287,8 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("\nFound %d devices:\n", len(infoMap)))
-	for key, val := range infoMap {
-		sb.WriteString(fmt.Sprintf("Device %s (RSSI:%d dBm; last seen %s):\nEvents:", formatAddress(key), val.Rssi, val.LastSeen.Format(time.Stamp)))
-		for i, t := range val.Types {
-			if i > 0 {
-				sb.WriteString(fmt.Sprintf(","))
-			}
-			sb.WriteString(fmt.Sprintf("%s", t.String()))
-		}
-		sb.WriteString(fmt.Sprintf("\n"))
-		sb.WriteString(fmt.Sprintf("Advertising Data Structures:\n"))
-		for _, ad := range val.Structures {
-			switch ad.Typ {
-			case hci.AdFlags:
-				sb.WriteString(fmt.Sprintf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data)))
-			case hci.AdCompleteLocalName:
-				fallthrough
-			case hci.AdShortenedLocalName:
-				sb.WriteString(fmt.Sprintf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data)))
-			case hci.AdDeviceAddress:
-				sb.WriteString(fmt.Sprintf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data)))
-			default:
-				sb.WriteString(fmt.Sprintf("\t%s\n", ad.String()))
-			}
-		}
+	for _, val := range infoMap {
+		sb.WriteString(val.String())
 	}
 	out.write(sb.String())
 }
@@ -355,7 +360,7 @@ func collectorLoop(reportChan chan *host.ScanReport, out *output) {
 			if !cmdline.debug {
 				fmt.Printf(".")
 			}
-			ndev := &foundDevice{Structures: sr.Data, Rssi: sr.Rssi, LastSeen: time.Now()}
+			ndev := &foundDevice{Device: sr.Address, Structures: sr.Data, Rssi: sr.Rssi, LastSeen: time.Now()}
 			ndev.Types = make([]hci.AdvType, 1, 2)
 			ndev.Types[0] = sr.Type
 			collected[sr.Address] = ndev
