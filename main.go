@@ -58,6 +58,29 @@ func (out *output) Close() {
 	}
 }
 
+// writeAsJSON marshals the given data into JSON and prints
+// the resulting string(s) using this output. If output is marked
+// as HumanReadble, the JSON is indented and printed so that it
+// is easy to read. If ouput is not HumanReadable, the json is
+// printed as a single -line where data is terminated by newline ('\n')
+func (out *output) writeAsJSON(data interface{}) {
+	var err error
+	var jdata []byte
+	if out.isHumanReadable() {
+		jdata, err = json.MarshalIndent(data, "", "\t")
+	} else {
+		jdata, err = json.Marshal(data)
+		if err == nil {
+			jdata = []byte(string(jdata) + "\n")
+		}
+	}
+	if err == nil {
+		out.wr.Write(jdata)
+	} else {
+		log.Printf("WARN: unable to marshall \"%v\" as JSON: %s", data, err.Error())
+	}
+}
+
 func outputForSocket(path string) (*output, error) {
 	unixConn, err := net.Dial("unix", path)
 	if err != nil {
@@ -267,21 +290,7 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 			devices[i] = val
 			i++
 		}
-		var jdata []byte
-		var err error
-		if out.isHumanReadable() {
-			jdata, err = json.MarshalIndent(devices, "", "\t")
-		} else {
-			jdata, err = json.Marshal(devices)
-			if err == nil {
-				jdata = []byte(string(jdata) + "\n")
-			}
-		}
-		if err != nil {
-			fmt.Printf("Error while creating json output: %s\n", err.Error())
-		} else {
-			out.write(string(jdata))
-		}
+		out.writeAsJSON(devices)
 		return
 	}
 
@@ -295,38 +304,22 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 
 type loopFunc func(chan *host.ScanReport, *output)
 
-func ruuviOuputJSON(data *ruuvi.Data, address hci.BtAddress, rssi int8, indent bool) string {
+func ruuviOuputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
 
-	val := struct {
+	out.writeAsJSON(struct {
 		Device hci.BtAddress `json:"device"`
 		Rssi   int8          `json:"rssi"`
 		Values *ruuvi.Data   `json:"sensors"`
-	}{address, rssi, data}
-
-	var jdata []byte
-	var err error
-	if indent {
-		jdata, err = json.MarshalIndent(val, "", "\t")
-	} else {
-		jdata, err = json.Marshal(val)
-		if err == nil {
-			jdata = []byte(string(jdata) + "\n")
-		}
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to create ruuvi JSON data (%s)", err.Error())
-		return ""
-	}
-	return string(jdata)
+	}{address, rssi, data})
 }
 
-func ruuviOutput(data *ruuvi.Data, address hci.BtAddress, rssi int8) string {
+func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
 	bld := strings.Builder{}
 
 	bld.WriteString(fmt.Sprintf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(address), rssi))
 	bld.WriteString(fmt.Sprintf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", data.Humidity, data.Temperature, data.Pressure, data.Voltage))
 	bld.WriteString(fmt.Sprintf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ))
-	return bld.String()
+	out.write(bld.String())
 }
 
 //listen for ruuvi tag advertisments and print out the decoded information
@@ -339,13 +332,11 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 					log.Printf("Unable to parse ruuvi data: %s\n", err.Error())
 					continue
 				}
-				output := ""
 				if cmdline.json {
-					output = ruuviOuputJSON(ruuviData, sr.Address, sr.Rssi, out.isHumanReadable())
+					ruuviOuputJSON(out, ruuviData, sr.Address, sr.Rssi)
 				} else {
-					output = ruuviOutput(ruuviData, sr.Address, sr.Rssi)
+					ruuviOutput(out, ruuviData, sr.Address, sr.Rssi)
 				}
-				out.write(output)
 			}
 		}
 	}
