@@ -15,6 +15,32 @@ installed, Bluewalker can be compiled (on linux) with `go install gitlab.com/jta
 
 ## Usage
 
+```
+Usage of ./bluewalker:
+  -active
+        Active scanning
+  -debug
+        Enable debug messages
+  -device string
+        HCI device to use
+  -duration int
+        Number of seconds to scan (default 5)
+  -filter-addr string
+        List of addresses where advertisement data is accepted from
+  -filter-adtype string
+        Only show devices whose Advertising data contains structures with specified type(s)
+  -filter-vendor string
+        Only show devices whose vendor specific advertising data starts with given bytes
+  -json
+        Output data as json
+  -observer
+        Do scanning in observer mode (display advertising packets as they are received)
+  -ruuvi
+        Scan and display information about found Ruuvi tags
+  -unix string
+        Unix socket path where to write results
+```
+
 Bluewalker needs the name of Bluetooth device to use as parameter. Available
 Bluetooth devices can be viewed with `hciconfig` command. The selected
 hci device needs to be down for Bluewalker to be able to use it. Use
@@ -22,12 +48,14 @@ hci device needs to be down for Bluewalker to be able to use it. Use
 can be started using `sudo bluewalker -device <hcidevice>`. Bluewalker needs
 to be run as root to be able to access the raw HCI device.
 
+### Collector -mode
 By default Bluewalker listens for avaibale Bluetooth LE advertisements for
 5 seconds and then prints information about found devices and all different
 advertisement data it has received from each device. The number of seconds to
-scan can be changed with `-duration <seconds>` parameter. By default Bluewalker
-does only passive scanning, active scanning can be turned on with `-active`
-parameter.
+scan can be changed with `-duration <seconds>` parameter. If duration is given
+as -1, the scanning will continue until user presses `ctrl+c` to terminate it.
+By default Bluewalker does only passive scanning, active scanning can be turned
+on with `-active` parameter.
 
 After the scanning is complete, information gathered is printed:
 ```
@@ -62,6 +90,12 @@ structures received from this device are printed.
 Additional information is printed for
 some advertising structures (Flags are parsed, device name is printed, etc).
 
+### Observer -mode
+
+If `-observer` option is given, then Bluewalker will print information about
+received packets as they are received instead of collecting them and printing
+summary information. 
+
 ### Filters
 
 To display information only about devices with given address, use
@@ -91,7 +125,7 @@ RAW mode and the information is encoded with version 3 of the data (see
 [here for RuuviTag data specifications](https://github.com/ruuvi/ruuvi-sensor-protocols))
 
 When run in *ruuvi* mode, bluewalker will display RuuviTag information whenever
-it receives data:
+it receives data (no need to use `-observer` option):
 ```
 $ sudo ./bluewalker -device hci0 -ruuvi
 Ruuvi device f2:2e:df:eb:8e:99,random (RSSI:-61 dBm)
@@ -110,11 +144,29 @@ Ruuvi device dc:15:32:fd:71:1f,random (RSSI:-61 dBm)
 If `-json` command line option is given, bluewalker will produce JSON encoded
 output. This applies both to _ruuvi_ and normal mode.
 
+### Writing JSON output to UNIX socket
+
+If `-unix <path>` command line option is given, the Bluewalker will try to
+connect to UNIX socket in given path and writes the JSON output to this
+socket. Note that even if `-json` command line option is not given, specifying
+UNIX socket path forces JSON output.
+
+The JSON data structures are specified below, when data is written to UNIX
+socket, the data is written without any identation as a string terminated
+by newline (`\n`) character. Thus, when parsing JSON data from UNIX socket,
+when newline is encountered you should have received a well -formed JSON
+structure.
+
+When data is written to stdout, the JSON structures are printed indented.
+
 ### JSON definitions
 
-When scanning in JSON mode, the scan results are printed to stdout as JSON
+When scanning in _collector_ mode, the scan results are presented as JSON
 array, where each element on the array represents one device and information
-gathered from it during scanning.
+gathered from it during scanning. In _observer_ mode, every received Advertising
+Data packet is printed in device information structure as it is received. 
+
+The format for device information structure is
 ```
 	{
 		"data": [
