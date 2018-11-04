@@ -458,6 +458,11 @@ func main() {
 		}
 	}
 
+	if cmdline.duration == 0 || cmdline.duration < -1 {
+		fmt.Fprintf(os.Stderr, "Invalid duration %d\n", cmdline.duration)
+		os.Exit(255)
+	}
+
 	var out *output
 	if cmdline.socketPath != "" {
 		if !cmdline.json {
@@ -516,12 +521,20 @@ func main() {
 		wg.Done()
 	}()
 
-	ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
-	select {
-	case <-ch:
-	case s := <-sig:
-		log.Printf("Received signal %s, stopping ", s.String())
+	if cmdline.duration == -1 {
+		select {
+		case s := <-sig:
+			log.Printf("Received signal %s, stopping ", s.String())
 
+		}
+	} else {
+		ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
+		select {
+		case <-ch:
+		case s := <-sig:
+			log.Printf("Received signal %s, stopping ", s.String())
+
+		}
 	}
 	host.StopScanning()
 	host.Deinit()
