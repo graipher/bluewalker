@@ -7,11 +7,13 @@ controller and bypasses the Linux Bluetooth stack. This allows Bluewalker
 access to all Bluetooth LE Advertisement Data sent by nearby Bluetooth LE
 devices.
 
-## Compilation
+## Installing
 
 Bluewalker needs `golang.org/x/sys/unix` package to be installed, it can
 be installed with `go get golang.org/x/sys/unix`. After this package is
-installed, Bluewalker can be compiled (on linux) with `go install gitlab.com/jtaimisto/bluewalker`. You should use go version 1.10 or higher.  
+installed, Bluewalker can be installed and compiled (on linux) with
+`go get gitlab.com/jtaimisto/bluewalker`. You should use go version 1.10 or
+higher.  
 
 ## Usage
 
