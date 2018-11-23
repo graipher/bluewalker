@@ -9,16 +9,18 @@ devices.
 
 ## Installing
 
-Bluewalker needs `golang.org/x/sys/unix` package to be installed, it can
-be installed with `go get golang.org/x/sys/unix`. After this package is
-installed, Bluewalker can be installed and compiled (on linux) with
-`go get gitlab.com/jtaimisto/bluewalker`. You should use go version 1.10 or
-higher.  
+On Linux, with go 1.11 or better installed:
+
+```
+$ go get gitlab.com/jtaimisto/bluewalker
+```
+
+This will install the binary to ~/bin by default.
 
 ## Usage
 
 ```
-Usage of ./bluewalker:
+Usage of bluewalker:
   -active
         Active scanning
   -debug
