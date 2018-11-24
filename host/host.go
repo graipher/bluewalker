@@ -135,14 +135,20 @@ func (h *Host) executor() {
 			e.fail(fmt.Errorf("Can not write: %s", err.Error()))
 			continue
 		}
-		select {
-		case cc := <-h.cc:
-			numCommands = int(cc.GetNumHciCommandPackets())
-			log.Printf("Number of HCI packets increased to %d", numCommands)
-			if cc.GetCommandOpcode() == e.cmd.OpCode {
-				e.complete(cc)
-			} else {
-				log.Printf("Received unexepcted cc for %s ", cc.GetCommandOpcode().String())
+		completed := false
+		// we need to wait until the command has completed before starting
+		// with new command.
+		for !completed {
+			select {
+			case cc := <-h.cc:
+				numCommands = int(cc.GetNumHciCommandPackets())
+				log.Printf("Number of HCI packets increased to %d", numCommands)
+				if cc.GetCommandOpcode() == e.cmd.OpCode {
+					completed = true
+					e.complete(cc)
+				} else {
+					log.Printf("Received unexepcted cc for %s ", cc.GetCommandOpcode().String())
+				}
 			}
 		}
 		// XXX check numCommands, we should wait if it is 0
