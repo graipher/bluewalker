@@ -182,6 +182,36 @@ func TestExecutorWriteFail(t *testing.T) {
 	close(h.cc)
 }
 
+func TestExecutorMultipleCC(t *testing.T) {
+
+	h := New(new(testTransport))
+	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
+
+	ch := make(chan int)
+	ex := exec{cmd: &cmd,
+		complete: func(cc *hci.CommandCompleteEvent) {
+			ch <- 1
+		},
+		fail: func(er error) {
+			t.FailNow()
+		},
+	}
+
+	ccExpected := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, t)
+	ccUnexpected := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandLeSetEventMask, t)
+
+	go h.executor()
+	h.cmd <- &ex
+	h.cc <- ccUnexpected
+	h.cc <- ccExpected
+
+	// wait for the completion to be called
+	<-ch
+
+	close(h.cmd)
+	close(h.cc)
+}
+
 func TestEventHandlerCC(t *testing.T) {
 
 	h := New(nil)
