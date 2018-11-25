@@ -34,12 +34,12 @@ func (tt *testTransport) Write(data []byte) error {
 	return tt.wfunc(data)
 }
 
-func mkCommandCompleteEvent(status hci.ErrorCode, op hci.CommandOpCode, t *testing.T) *hci.CommandCompleteEvent {
+func mkCommandCompleteEvent(status hci.ErrorCode, op hci.CommandOpCode, nrCompleted int, t *testing.T) *hci.CommandCompleteEvent {
 
 	buf := make([]byte, 6)
 	buf[0] = byte(hci.EventCodeCommandComplete)
 	buf[1] = 4 // length
-	buf[2] = 1 // num HCI packets
+	buf[2] = byte(nrCompleted)
 	binary.LittleEndian.PutUint16(buf[3:], uint16(op))
 	buf[5] = byte(status)
 
@@ -67,7 +67,7 @@ func TestCommandExecSuccess(t *testing.T) {
 	h := New(nil)
 	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
 
-	cc := mkCommandCompleteEvent(0, hci.CommandReset, t)
+	cc := mkCommandCompleteEvent(0, hci.CommandReset, 1, t)
 
 	ch := make(chan error)
 	go func(errChan chan error, t *testing.T) {
@@ -87,7 +87,7 @@ func TestCommandExecFail(t *testing.T) {
 	h := New(nil)
 	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
 
-	cc := mkCommandCompleteEvent(hci.StatusInvalidParams, hci.CommandReset, t)
+	cc := mkCommandCompleteEvent(hci.StatusInvalidParams, hci.CommandReset, 1, t)
 
 	ch := make(chan error)
 
@@ -138,7 +138,7 @@ func TestExecutorHappy(t *testing.T) {
 		}, fail: func(er error) {
 
 		}}
-	cc := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, t)
+	cc := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, 1, t)
 
 	go h.executor()
 	h.cmd <- &ex
@@ -197,8 +197,8 @@ func TestExecutorMultipleCC(t *testing.T) {
 		},
 	}
 
-	ccExpected := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, t)
-	ccUnexpected := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandLeSetEventMask, t)
+	ccExpected := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, 1, t)
+	ccUnexpected := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandLeSetEventMask, 1, t)
 
 	go h.executor()
 	h.cmd <- &ex
@@ -295,7 +295,7 @@ func TestInitHappy(t *testing.T) {
 		if cmd.cmd.OpCode != initCommands[i] {
 			t.Errorf("Expected command %s, got %s", initCommands[i].String(), cmd.cmd.OpCode.String())
 		}
-		cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, initCommands[i], t))
+		cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, initCommands[i], 1, t))
 	}
 	err := <-ch
 	if err != nil {
@@ -314,7 +314,7 @@ func TestInitFail(t *testing.T) {
 
 	// make sure we signal error and stop when command fails
 	cmd := <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, t))
+	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
 	err := <-ch
 	if err == nil {
 		t.Errorf("Expected initialization to fail")
@@ -336,7 +336,7 @@ func TestStartScanHappy(t *testing.T) {
 		if cmd.cmd.OpCode != scanCommands[i] {
 			t.Errorf("Expected command %s, got %s", scanCommands[i].String(), cmd.cmd.OpCode.String())
 		}
-		cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, scanCommands[i], t))
+		cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, scanCommands[i], 1, t))
 	}
 	err := <-ch
 	if err != nil {
@@ -355,7 +355,7 @@ func TestStartScanFail(t *testing.T) {
 
 	// make sure we signal error and stop when command fails
 	cmd := <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, t))
+	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
 	err := <-ch
 	if err == nil {
 		t.Errorf("Expected start scan to fail")
@@ -373,9 +373,9 @@ func TestStartScan2ndFail(t *testing.T) {
 
 	// make sure we signal error and stop when command fails
 	cmd := <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, cmd.cmd.OpCode, t))
+	cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, cmd.cmd.OpCode, 1, t))
 	cmd = <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, t))
+	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
 	err := <-ch
 	if err == nil {
 		t.Errorf("Expected start scan to fail")
@@ -396,7 +396,7 @@ func TestStopScanning(t *testing.T) {
 	if cmd.cmd.OpCode != hci.CommandLeSetScanEnable {
 		t.Errorf("Unexpected command")
 	}
-	cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, cmd.cmd.OpCode, t))
+	cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, cmd.cmd.OpCode, 1, t))
 	err := <-ch
 	if err != nil {
 		t.Errorf("Unexpected error while stopping scan")
@@ -417,7 +417,7 @@ func TestStopScanningFail(t *testing.T) {
 	if cmd.cmd.OpCode != hci.CommandLeSetScanEnable {
 		t.Errorf("Unexpected command")
 	}
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, t))
+	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
 	err := <-ch
 	if err == nil {
 		t.Errorf("Expected stopping scanning to fail")
