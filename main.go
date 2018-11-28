@@ -408,7 +408,7 @@ func collectorLoop(reportChan chan *host.ScanReport, out *output) {
 func main() {
 	err := realMain()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(255)
 	}
 }
