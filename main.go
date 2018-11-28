@@ -330,7 +330,7 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
 				ruuviData, err := ruuvi.Unmarshall(ads.Data)
 				if err != nil {
-					log.Printf("Unable to parse ruuvi data: %s\n", err.Error())
+					log.Printf("Unable to parse ruuvi data: %v", err)
 					continue
 				}
 				if cmdline.json {
@@ -416,7 +416,7 @@ func main() {
 func realMain() error {
 	flag.Parse()
 	if cmdline.device == "" {
-		return fmt.Errorf("Missing device name\n")
+		return fmt.Errorf("Missing device name")
 	}
 
 	if !cmdline.debug {
