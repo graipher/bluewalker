@@ -32,6 +32,8 @@ type ScanReport struct {
 type Host struct {
 	tr hci.Transport
 	wg sync.WaitGroup
+	// Mutex synchronizing access to host internals
+	mux sync.Mutex
 	// Event channel
 	evt chan []byte
 	// Commands for executor
@@ -42,6 +44,9 @@ type Host struct {
 	ad chan *ScanReport
 	// Filters for incoming advertising reports
 	filters adfilters
+	// flag indicating that host is closing.
+	// access needs to be protected using mux as event receiving goroutine
+	// is using this to indicate it should stop.
 	closing bool
 }
 
@@ -61,10 +66,18 @@ func New(tr hci.Transport) *Host {
 	return host
 }
 
+func (h *Host) isClosing() bool {
+	var ret bool
+	h.mux.Lock()
+	ret = h.closing
+	h.mux.Unlock()
+	return ret
+}
+
 func (h *Host) eventReceiver() {
 
 	defer h.wg.Done()
-	for !h.closing {
+	for !h.isClosing() {
 		buf, err := h.tr.Read()
 		if err != nil {
 			if !os.IsTimeout(err) {
@@ -305,8 +318,10 @@ func (h *Host) Deinit() {
 	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
 	// not checking the return value since there is not much we can do on error
 	h.executeStatusCommand(&cmd)
-
+	h.mux.Lock()
 	h.closing = true
+	h.mux.Unlock()
+
 	h.tr.Close()
 	h.wg.Wait()
 	// Now the eventReceiver has stopped. Rest should stop when we close

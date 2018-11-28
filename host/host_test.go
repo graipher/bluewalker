@@ -321,7 +321,9 @@ func TestEventReceiver(t *testing.T) {
 	go h.eventReceiver()
 
 	buf := <-h.evt
+	h.mux.Lock()
 	h.closing = true
+	h.mux.Unlock()
 
 	rcv, err := hci.DecodeEvent(buf)
 	if err != nil {
