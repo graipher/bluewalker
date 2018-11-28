@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -407,11 +406,17 @@ func collectorLoop(reportChan chan *host.ScanReport, out *output) {
 }
 
 func main() {
+	err := realMain()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+		os.Exit(255)
+	}
+}
 
+func realMain() error {
 	flag.Parse()
 	if cmdline.device == "" {
-		fmt.Fprintf(os.Stderr, "Missing device name\n")
-		os.Exit(255)
+		return fmt.Errorf("Missing device name\n")
 	}
 
 	if !cmdline.debug {
@@ -420,38 +425,32 @@ func main() {
 	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
 		if cmdline.ruuvi {
-			fmt.Fprintf(os.Stderr, "Address filters not supported on Ruuvi tag mode\n")
-			os.Exit(255)
+			return fmt.Errorf("Address filters not supported on Ruuvi tag mode")
 		}
 		var err error
 		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-			os.Exit(255)
+			return fmt.Errorf("%s", err.Error())
 		}
 	}
 
 	if cmdline.vendorFilter != "" {
 		if cmdline.ruuvi {
-			fmt.Fprintf(os.Stderr, "Vendor filter not supported on Ruuvi tag mode\n")
-			os.Exit(255)
+			return fmt.Errorf("Vendor filter not supported on Ruuvi tag mode")
 		}
 		filt, err := parseVendorSpecFilter(cmdline.vendorFilter)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-			os.Exit(255)
+			return fmt.Errorf("%s", err.Error())
 		}
 		filters = append(filters, filt)
 	}
 
 	if cmdline.adTypeFilter != "" {
 		if cmdline.ruuvi {
-			fmt.Fprintf(os.Stderr, "AD type filter not supported on Ruuvi tag mode\n")
-			os.Exit(255)
+			return fmt.Errorf("AD type filter not supported on Ruuvi tag mode")
 		}
 		filt, err := parseAdTypeFilters(cmdline.adTypeFilter)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-			os.Exit(255)
+			return fmt.Errorf("%s", err.Error())
 		}
 		for _, f := range filt {
 			filters = append(filters, f)
@@ -459,21 +458,19 @@ func main() {
 	}
 
 	if cmdline.duration == 0 || cmdline.duration < -1 {
-		fmt.Fprintf(os.Stderr, "Invalid duration %d\n", cmdline.duration)
-		os.Exit(255)
+		return fmt.Errorf("Invalid duration %d", cmdline.duration)
 	}
 
 	var out *output
 	if cmdline.socketPath != "" {
 		if !cmdline.json {
-			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
+			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning")
 			cmdline.json = true
 		}
 		var err error
 		out, err = outputForSocket(cmdline.socketPath)
 		if err != nil {
-			fmt.Printf("Unable to open unix socket at %s (%s)\n", cmdline.socketPath, err.Error())
-			os.Exit(255)
+			return fmt.Errorf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err)
 		}
 		defer out.Close()
 	} else {
@@ -496,47 +493,42 @@ func main() {
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error while opening RAW HCI socket: %s\nAre you running as root and have you run sudo hciconfig %s down?\n", err.Error(), cmdline.device)
-		os.Exit(255)
+		return fmt.Errorf("Error while opening RAW HCI socket: %v\nAre you running as root and have you run sudo hciconfig %s down?", err, cmdline.device)
 	}
 
-	host := host.New(raw)
-	if err = host.Init(); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to initialize host: %s\n", err.Error())
-		host.Deinit()
-		os.Exit(255)
-	}
+	errCh := make(chan error)
 
-	reportChan, err := host.StartScanning(cmdline.active, filters)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start scanning: %s\n", err.Error())
-		host.Deinit()
-		os.Exit(255)
-	}
+	go func(errCh chan<- error) {
+		host := host.New(raw)
+		defer host.Deinit()
+		if err = host.Init(); err != nil {
+			errCh <- fmt.Errorf("Unable to initialize host: %v", err)
+			return
+		}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+		defer host.StopScanning() // FIXME: error ignored
+		reportChan, err := host.StartScanning(cmdline.active, filters)
+		if err != nil {
+			errCh <- fmt.Errorf("Unable to start scanning: %v", err)
+			return
+		}
+
 		loop(reportChan, out)
-		wg.Done()
-	}()
+		close(errCh)
+	}(errCh)
 
+	scanComplete := time.After(time.Duration(cmdline.duration) * time.Second)
 	if cmdline.duration == -1 {
-		select {
-		case s := <-sig:
-			log.Printf("Received signal %s, stopping ", s.String())
-
-		}
-	} else {
-		ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
-		select {
-		case <-ch:
-		case s := <-sig:
-			log.Printf("Received signal %s, stopping ", s.String())
-
-		}
+		scanComplete = nil // read blocks forever
 	}
-	host.StopScanning()
-	host.Deinit()
-	wg.Wait()
+
+	select {
+	case <-scanComplete:
+	case err := <-errCh:
+		log.Printf("Received error %v, stopping ", err)
+		return err
+	case s := <-sig:
+		log.Printf("Received signal %v, stopping ", s)
+	}
+	return nil
 }
