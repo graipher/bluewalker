@@ -212,6 +212,59 @@ func TestExecutorMultipleCC(t *testing.T) {
 	close(h.cc)
 }
 
+func TestZeroHCICommands(t *testing.T) {
+
+	h := New(new(testTransport))
+
+	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
+	cmd2 := hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
+
+	ch := make(chan int, 3)
+
+	ex1 := exec{
+		cmd: &cmd,
+		complete: func(cc *hci.CommandCompleteEvent) {
+			ch <- 1
+		},
+		fail: func(error) {
+			t.FailNow()
+		},
+	}
+	ex2 := exec{
+		cmd: &cmd2,
+		complete: func(cc *hci.CommandCompleteEvent) {
+			ch <- 2
+		},
+		fail: func(error) {
+			t.FailNow()
+		},
+	}
+
+	cc := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, 0, t)
+	cc2 := mkCommandCompleteEvent(hci.StatusSuccess, 0, 1, t)
+	cc3 := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandLeSetScanEnable, 1, t)
+
+	go h.executor()
+
+	h.cmd <- &ex1
+
+	h.cc <- cc
+	h.cc <- cc2
+
+	h.cmd <- &ex2
+
+	ret := <-ch
+	if ret != 1 {
+		t.Fatalf("Unexpected completion")
+	}
+	h.cc <- cc3
+
+	ret = <-ch
+	if ret != 2 {
+		t.Fatalf("unexpected completion")
+	}
+}
+
 func TestEventHandlerCC(t *testing.T) {
 
 	h := New(nil)
