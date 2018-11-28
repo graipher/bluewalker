@@ -2,7 +2,10 @@
 
 package hci
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // ErrNotImplemented is returned for functions which are not
 // implemented by this transport
@@ -22,9 +25,11 @@ func (d *dummy) Close() {
 }
 
 func (d *dummy) Read() ([]byte, error) {
+	<-time.After(time.Second)
 	return nil, ErrNotImplemented
 }
 
 func (d *dummy) Write(buffer []byte) error {
+	<-time.After(time.Second)
 	return ErrNotImplemented
 }
