@@ -11,6 +11,7 @@ import (
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
 
+// exec is used when HCI commands need to be sent to controller
 type exec struct {
 	// command to execute
 	cmd *hci.CommandPacket
@@ -21,6 +22,7 @@ type exec struct {
 }
 
 //ScanReport contains information about a device found on scanning
+//See Bluetooth 5.0, vol 2, part E, ch 7.7.65.2
 type ScanReport struct {
 	Type    hci.AdvType
 	Address hci.BtAddress
@@ -30,17 +32,25 @@ type ScanReport struct {
 
 // Host implements the host side of Bluetooth Host - Controller interface
 type Host struct {
+	// Transport we are using for Host - Controller communication
 	tr hci.Transport
+	// WaitGroup to signal when host event receiver has stopped
 	wg sync.WaitGroup
 	// Mutex synchronizing access to host internals
 	mux sync.Mutex
 	// Event channel
+	// Event receiver pushes received events to this channel
+	// Event handler will read events from this channel
 	evt chan []byte
 	// Commands for executor
+	// Command executor will read commands to execute from this channel
 	cmd chan *exec
 	// CommandComplete events to executor
+	// Command executor will read this channel when it is waiting command to complete
 	cc chan *hci.CommandCompleteEvent
 	// Channel used to inform about received scanning data
+	// StartScanning() will return this channel and user will receive ScanReports
+	// through it.
 	ad chan *ScanReport
 	// Filters for incoming advertising reports
 	filters adfilters
@@ -66,6 +76,8 @@ func New(tr hci.Transport) *Host {
 	return host
 }
 
+// isClosing returns true if closing flag is set.
+// This is safe way to check the status of closing flag
 func (h *Host) isClosing() bool {
 	var ret bool
 	h.mux.Lock()
@@ -74,6 +86,10 @@ func (h *Host) isClosing() bool {
 	return ret
 }
 
+// eventReceiver is run on its own goroutine and it uses the transport to
+// receive events from Controller. No other goroutine should read from
+// transport. The received events are written to 'evt' channel in host
+// this method will return when isClosing() returns true
 func (h *Host) eventReceiver() {
 
 	defer h.wg.Done()
@@ -98,6 +114,10 @@ func (h *Host) eventReceiver() {
 	log.Printf("EventReceiver closing")
 }
 
+// eventHandler is run on its own goroutine and it reads the events
+// from 'evt' channel. Event handler is responsible for routing the events
+// to correct channel or calling proper handlers for the events.
+// This method returns when 'evt' channel is closed
 func (h *Host) eventHandler() {
 
 	for buf := range h.evt {
@@ -133,6 +153,12 @@ func (h *Host) eventHandler() {
 	log.Printf("Event handler stopping")
 }
 
+// executor is run on its own goroutine and it is responsible for for
+// executing HCI commands. The commands to execute are read from 'cmd'
+// channel and written to controller. Then Command Complete event is waited
+// and the status of command execution is communicated back to one requesting
+// the command to be sent.
+// This method returns once the 'cmd' channel is closed.
 func (h *Host) executor() {
 
 	// number of commands we can execute
@@ -168,6 +194,9 @@ func (h *Host) executor() {
 	}
 }
 
+// executeStatusCommand executes single HCI command which expects to have
+// 'status' parameter in the following CommandComplete event. This status
+// is checked and error is returned command execution failed.
 func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
 
 	var wg sync.WaitGroup
@@ -192,6 +221,8 @@ func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
 	return err
 }
 
+// initializeController sends the necessary commands to initialize
+// communication with Controller. The controller is reset first.
 func (h *Host) initializeController() error {
 
 	commands := make([]*hci.CommandPacket, 4)
@@ -250,6 +281,8 @@ func (h *Host) Init() error {
 
 //StartScanning will start scanning for Bluetooth LE Advertisements
 //Active defines if active or passive scanning should be done
+//The returned channel can be used to receive all scan reports matching _any_
+//of the filters on list. The returned cannel should _not_ be closed.
 func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *ScanReport, error) {
 
 	if filters != nil && len(filters) > 0 {
