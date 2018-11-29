@@ -1,0 +1,37 @@
+[Unit]
+Description=bluewalker ruuvitag receiver
+Documentation=https://gitlab.com/jtaimisto/bluewalker/
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+
+[Service]
+Restart=on-abnormal
+
+; User and group the process will run as.
+User=pi
+Group=pi
+
+ExecStart=/usr/local/bin/bluewalker -device hci0 -ruuvi -duration -1
+
+StandardOutput=null
+
+; Limit the number of file descriptors; see `man systemd.exec` for more limit settings.
+LimitNOFILE=1024
+LimitNPROC=32
+
+; Use private /tmp and /var/tmp, which are discarded after service stops.
+PrivateTmp=true
+; Use a minimal /dev (May bring additional security if switched to 'true', but it may not work on Raspberry Pi's or other devices, so it has been disabled in this dist.)
+PrivateDevices=false
+; Hide /home, /root, and /run/user. Nobody will steal your SSH-keys.
+ProtectHome=true
+; Make /usr, /boot, /etc and possibly some more folders read-only.
+ProtectSystem=full
+
+; The following additional security directives only work with systemd v229 or later.
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
