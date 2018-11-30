@@ -78,7 +78,7 @@ func (out *output) writeAsJSON(data interface{}) {
 	if err == nil {
 		out.wr.Write(jdata)
 	} else {
-		log.Printf("WARN: unable to marshall \"%v\" as JSON: %s", data, err.Error())
+		log.Printf("WARN: unable to marshal %q as JSON: %v", data, err)
 	}
 }
 
@@ -104,28 +104,27 @@ type foundDevice struct {
 }
 
 func (dev *foundDevice) String() string {
-	sb := strings.Builder{}
+	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Device %s (RSSI:%d dBm; last seen %s):\nEvents:", formatAddress(dev.Device), dev.Rssi, dev.LastSeen.Format(time.Stamp)))
 	for i, t := range dev.Types {
 		if i > 0 {
-			sb.WriteString(fmt.Sprintf(","))
+			sb.WriteString(",")
 		}
-		sb.WriteString(fmt.Sprintf("%s", t.String()))
+		sb.WriteString(t.String())
 	}
-	sb.WriteString(fmt.Sprintf("\n"))
-	sb.WriteString(fmt.Sprintf("Advertising Data Structures:\n"))
+	sb.WriteString("\nAdvertising Data Structures:\n")
 	for _, ad := range dev.Structures {
 		switch ad.Typ {
 		case hci.AdFlags:
-			sb.WriteString(fmt.Sprintf("\t%s; %s\n", ad.String(), decodeAdFlags(ad.Data)))
+			sb.WriteString(fmt.Sprintf("\t%s; %s\n", ad, decodeAdFlags(ad.Data)))
 		case hci.AdCompleteLocalName:
 			fallthrough
 		case hci.AdShortenedLocalName:
-			sb.WriteString(fmt.Sprintf("\t%s\n\t\tName: \"%s\"\n", ad.String(), string(ad.Data)))
+			sb.WriteString(fmt.Sprintf("\t%s\n\t\tName: \"%s\"\n", ad, string(ad.Data)))
 		case hci.AdDeviceAddress:
-			sb.WriteString(fmt.Sprintf("\t%s (%s)\n", ad.String(), decodeDeviceAddress(ad.Data)))
+			sb.WriteString(fmt.Sprintf("\t%s (%s)\n", ad, decodeDeviceAddress(ad.Data)))
 		default:
-			sb.WriteString(fmt.Sprintf("\t%s\n", ad.String()))
+			sb.WriteString(fmt.Sprintf("\t%s\n", ad))
 		}
 	}
 	return sb.String()
@@ -157,7 +156,7 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 		if strings.Contains(addr, ",") {
 			parts := strings.Split(addr, ",")
 			if len(parts) != 2 {
-				return nil, fmt.Errorf("Invalid address specification \"%s\"", addresses)
+				return nil, fmt.Errorf("Invalid address specification %q", addresses)
 			}
 			switch parts[1] {
 			case "public":
@@ -167,16 +166,16 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 			case "random":
 				atype = hci.LeRandomAddress
 			default:
-				return nil, fmt.Errorf("Invalid address type \"%s\"", parts[1])
+				return nil, fmt.Errorf("Invalid address type %q", parts[1])
 			}
 			addr = parts[0]
 		}
 		baddr, err := hci.BtAddressFromString(addr)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid filter (%s)", err.Error())
+			return nil, fmt.Errorf("Invalid filter (%v)", err)
 		}
 		baddr.Atype = atype
-		log.Printf("Parsed address %s", baddr.String())
+		log.Printf("Parsed address %s", baddr)
 		parsed[i] = filter.ByAddress(baddr)
 	}
 	return parsed, nil
@@ -189,7 +188,7 @@ func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 	}
 	bytes, err := hex.DecodeString(data)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid vendor specific data specification (%s)", err.Error())
+		return nil, fmt.Errorf("Invalid vendor specific data specification (%v)", err)
 	}
 	return filter.ByVendor(bytes), nil
 }
@@ -204,7 +203,7 @@ func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
 		}
 		data, err := hex.DecodeString(part)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid Ad Type value \"%s\" (%s)", part, err.Error())
+			return nil, fmt.Errorf("Invalid Ad Type value %q (%v)", part, err)
 		}
 		if len(data) > 1 {
 			return nil, fmt.Errorf("Invald value for Ad Structure type (%s), expected one byte in hexadecimal", part)
@@ -215,7 +214,7 @@ func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
 }
 
 func formatAddress(addr hci.BtAddress) string {
-	addrstr := fmt.Sprintf("%s", addr.String())
+	addrstr := addr.String()
 	if addr.Atype == hci.LeRandomAddress {
 		addrstr += ",random"
 	}
@@ -316,11 +315,11 @@ func ruuviOuputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi i
 }
 
 func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
-	bld := strings.Builder{}
+	bld := new(strings.Builder)
 
-	bld.WriteString(fmt.Sprintf("Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(address), rssi))
-	bld.WriteString(fmt.Sprintf("\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", data.Humidity, data.Temperature, data.Pressure, data.Voltage))
-	bld.WriteString(fmt.Sprintf("\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ))
+	fmt.Fprintf(bld, "Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(address), rssi)
+	fmt.Fprintf(bld, "\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", data.Humidity, data.Temperature, data.Pressure, data.Voltage)
+	fmt.Fprintf(bld, "\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ)
 	out.write(bld.String())
 }
 
@@ -331,7 +330,7 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
 				ruuviData, err := ruuvi.Unmarshall(ads.Data)
 				if err != nil {
-					log.Printf("Unable to parse ruuvi data: %s\n", err.Error())
+					log.Printf("Unable to parse ruuvi data: %v", err)
 					continue
 				}
 				if cmdline.json {
@@ -425,7 +424,7 @@ func main() {
 		}
 		var err error
 		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(255)
 		}
 	}
@@ -437,7 +436,7 @@ func main() {
 		}
 		filt, err := parseVendorSpecFilter(cmdline.vendorFilter)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(255)
 		}
 		filters = append(filters, filt)
@@ -450,7 +449,7 @@ func main() {
 		}
 		filt, err := parseAdTypeFilters(cmdline.adTypeFilter)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(255)
 		}
 		for _, f := range filt {
@@ -472,7 +471,7 @@ func main() {
 		var err error
 		out, err = outputForSocket(cmdline.socketPath)
 		if err != nil {
-			fmt.Printf("Unable to open unix socket at %s (%s)\n", cmdline.socketPath, err.Error())
+			fmt.Printf("Unable to open unix socket at %s (%v)\n", cmdline.socketPath, err)
 			os.Exit(255)
 		}
 		defer out.Close()
@@ -496,20 +495,20 @@ func main() {
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error while opening RAW HCI socket: %s\nAre you running as root and have you run sudo hciconfig %s down?\n", err.Error(), cmdline.device)
+		fmt.Fprintf(os.Stderr, "Error while opening RAW HCI socket: %v\nAre you running as root and have you run sudo hciconfig %s down?\n", err, cmdline.device)
 		os.Exit(255)
 	}
 
 	host := host.New(raw)
 	if err = host.Init(); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to initialize host: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to initialize host: %v\n", err)
 		host.Deinit()
 		os.Exit(255)
 	}
 
 	reportChan, err := host.StartScanning(cmdline.active, filters)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start scanning: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to start scanning: %v\n", err)
 		host.Deinit()
 		os.Exit(255)
 	}
@@ -524,7 +523,7 @@ func main() {
 	if cmdline.duration == -1 {
 		select {
 		case s := <-sig:
-			log.Printf("Received signal %s, stopping ", s.String())
+			log.Printf("Received signal %s, stopping ", s)
 
 		}
 	} else {
@@ -532,7 +531,7 @@ func main() {
 		select {
 		case <-ch:
 		case s := <-sig:
-			log.Printf("Received signal %s, stopping ", s.String())
+			log.Printf("Received signal %s, stopping ", s)
 
 		}
 	}
