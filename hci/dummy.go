@@ -6,7 +6,7 @@ import "fmt"
 
 // ErrNotImplemented is returned for functions which are not
 // implemented by this transport
-var ErrNotImplemented = fmt.Errorf("Not implemented")
+var ErrNotImplemented = fmt.Errorf("HCI transport not implemented on Darwin")
 
 type dummy struct {
 }
