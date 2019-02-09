@@ -29,6 +29,33 @@ func (ba BtAddress) MarshalJSON() ([]byte, error) {
 	}{ba.String(), ba.Atype.String()})
 }
 
+//IsStatic returns true if address is static random address
+// See Bluetooth 5.0, vol6, part B, ch 1.3.2.1
+func (ba BtAddress) IsStatic() bool {
+	if ba.Atype != LeRandomAddress {
+		return false
+	}
+	return ba.raw[5]&0xc0 == 0xc0
+}
+
+//IsNonResolvable returns true if address is non-resolvable private random address
+// See Bluetooth 5.0, vol6, part B, ch 1.3.2.2
+func (ba BtAddress) IsNonResolvable() bool {
+	if ba.Atype != LeRandomAddress {
+		return false
+	}
+	return ba.raw[5]&0xc0 == 0x00
+}
+
+//IsResolvable returns true if address is resolvable private random address
+// See Bluetooth 5.0, vol6, part B, ch 1.3.2.2
+func (ba BtAddress) IsResolvable() bool {
+	if ba.Atype != LeRandomAddress {
+		return false
+	}
+	return ba.raw[5]&0xc0 == 0x40
+}
+
 //UnmarshalJSON parses the JSON encoded Bluetooth Address (as returned by
 //ba.MarshalJSON()) and sets values of this address as those parsed
 func (ba *BtAddress) UnmarshalJSON(b []byte) error {
