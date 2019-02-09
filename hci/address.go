@@ -1,6 +1,7 @@
 package hci
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -54,6 +55,37 @@ func (ba BtAddress) IsResolvable() bool {
 		return false
 	}
 	return ba.raw[5]&0xc0 == 0x40
+}
+
+// Resolve tries to resolve the address with given Identity Resolving Key.
+// Returns true if identity is resolved.
+// NOTE: The IRK here is treated as opaque value, the positon 0 should
+// contain the most significant byte.
+// The address needs to be resolvable private address.
+// See Bluetooth 5.0, vol 6, part B, ch 1.3.2.3
+func (ba BtAddress) Resolve(irk []byte) bool {
+	if !ba.IsResolvable() {
+		return false
+	}
+
+	//The resolvable private address (RPA) is divided into a 24-bit random
+	//part (prand) and a 24-bit hash part (hash). The least significant
+	//octet of the RPA becomes the least significant octet of hash and
+	//the most significant octet of RPA becomes the most significant octet
+	//of prand.
+	prand := ba.raw[3:] // address bytes are stored in little-endian!
+	hash := ba.raw[0:3]
+
+	//A localHash value is then generated using the random address hash
+	//function ah defined in [Vol 3] Part H, Section 2.2.2 with the input
+	//parameter k set to IRK of the known device and the input parameter r
+	//set to the prand value extracted from the RPA.
+
+	localHash := ah(irk, prand)
+	// The localHash value is then compared with the hash value extracted
+	//from RPA. If the localHash value matches the extracted hash value,
+	//then the identity of the peer device has been resolved.
+	return bytes.Compare(localHash, hash) == 0
 }
 
 //UnmarshalJSON parses the JSON encoded Bluetooth Address (as returned by

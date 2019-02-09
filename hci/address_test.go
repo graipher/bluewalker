@@ -1,6 +1,7 @@
 package hci
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"testing"
 )
@@ -126,5 +127,23 @@ func TestRandomAddressTypes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestResolve(t *testing.T) {
+
+	irk, _ := hex.DecodeString("1ABC39E76110FF5EC8715B7907D056AD")
+	address, _ := BtAddressFromString("75:d3:32:a3:db:3a")
+	address.Atype = LeRandomAddress
+
+	if !address.Resolve(irk) {
+		t.Errorf("Failed to resolve with proper IRK")
+	}
+
+	address2, _ := BtAddressFromString("75:d3:32:4e:1e:ab")
+	address2.Atype = LeRandomAddress
+
+	if address2.Resolve(irk) {
+		t.Errorf("Resolved address which should not be resolved")
 	}
 }
