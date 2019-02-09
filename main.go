@@ -216,7 +216,18 @@ func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
 func formatAddress(addr hci.BtAddress) string {
 	addrstr := addr.String()
 	if addr.Atype == hci.LeRandomAddress {
-		addrstr += ",random"
+		addrstr += ",random ("
+		if addr.IsNonResolvable() {
+			addrstr += "non-resolvable private"
+		} else if addr.IsResolvable() {
+			addrstr += "resolvable private"
+		} else if addr.IsStatic() {
+			addrstr += "static"
+		} else {
+			addrstr += "??"
+		}
+		addrstr += ")"
+
 	}
 	return addrstr
 }
