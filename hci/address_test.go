@@ -1,6 +1,7 @@
 package hci
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"testing"
 )
@@ -68,5 +69,81 @@ func TestJSONSimple(t *testing.T) {
 
 	if decoded != baddr {
 		t.Errorf("Decoded address (%+v) is not same is encoded address (%+v)", decoded, baddr)
+	}
+}
+
+func TestRandomAddressTypes(t *testing.T) {
+
+	testdata := []struct {
+		address  string
+		expected string
+	}{
+		{"55:D0:F7:48:79:D1", "resolvable"},
+		{"4F:74:12:3E:A2:F1", "resolvable"},
+		{"69:F5:58:7D:3F:59", "resolvable"},
+		{"DC:15:32:FD:71:1F", "static"},
+		{"C8:C6:4B:BD:12:10", "static"},
+		{"70:7D:0F:37:8C:FA", "resolvable"},
+		{"30:7D:0F:37:8C:FA", "non-resolvable"},
+		{"54:BD:79:CF:BD:AD", ""},
+	}
+
+	for _, test := range testdata {
+		t.Run(test.address, func(t *testing.T) {
+			addr, _ := BtAddressFromString(test.address)
+			if test.expected == "" {
+				addr.Atype = LePublicAddress
+			} else {
+				addr.Atype = LeRandomAddress
+			}
+
+			switch test.expected {
+			case "resolvable":
+				if !addr.IsResolvable() {
+					t.Errorf("Address %s not resolvable, should be", test.address)
+				}
+				if addr.IsStatic() || addr.IsNonResolvable() {
+					t.Errorf("also static or non-resolvable")
+
+				}
+			case "static":
+				if !addr.IsStatic() {
+					t.Errorf("Address %s not static, should be", test.address)
+				}
+				if addr.IsResolvable() || addr.IsNonResolvable() {
+					t.Errorf("also resolvable or non-resolvable")
+
+				}
+			case "non-resolvable":
+				if !addr.IsNonResolvable() {
+					t.Errorf("Address %s not non-resolvable, should be", test.address)
+				}
+				if addr.IsStatic() || addr.IsResolvable() {
+					t.Errorf("also static or resolvable")
+				}
+			case "":
+				if addr.IsNonResolvable() || addr.IsResolvable() || addr.IsStatic() {
+					t.Errorf("Public address")
+				}
+			}
+		})
+	}
+}
+
+func TestResolve(t *testing.T) {
+
+	irk, _ := hex.DecodeString("1ABC39E76110FF5EC8715B7907D056AD")
+	address, _ := BtAddressFromString("75:d3:32:a3:db:3a")
+	address.Atype = LeRandomAddress
+
+	if !address.Resolve(irk) {
+		t.Errorf("Failed to resolve with proper IRK")
+	}
+
+	address2, _ := BtAddressFromString("75:d3:32:4e:1e:ab")
+	address2.Atype = LeRandomAddress
+
+	if address2.Resolve(irk) {
+		t.Errorf("Resolved address which should not be resolved")
 	}
 }

@@ -72,3 +72,29 @@ func (f *adTypeFilter) Filter(report *hci.AdvertisingReport) bool {
 func ByAdType(typ hci.AdType) AdFilter {
 	return &adTypeFilter{typ: typ}
 }
+
+type irkFilter struct {
+	irk []byte
+	// if non-nil, latest resolved address, match first
+	resolved *hci.BtAddress
+}
+
+func (f *irkFilter) Filter(report *hci.AdvertisingReport) bool {
+	// Resolve will check if the address is of right type
+	addr := report.Address
+	ret := false
+	if f.resolved != nil && *f.resolved == addr {
+		ret = true
+	} else {
+		if addr.Resolve(f.irk) {
+			f.resolved = &addr
+			ret = true
+		}
+	}
+	return ret
+}
+
+//ByIrk returns filter which returns true if advertiser address is resolvable using given irk
+func ByIrk(irk []byte) AdFilter {
+	return &irkFilter{irk: irk}
+}

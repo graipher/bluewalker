@@ -9,7 +9,7 @@ devices.
 
 ## Installing
 
-On Linux, with go 1.11 or better installed:
+On Linux, with go 1.11 or newer installed:
 
 ```
 $ go get gitlab.com/jtaimisto/bluewalker
@@ -33,6 +33,8 @@ Usage of bluewalker:
         List of addresses where advertisement data is accepted from
   -filter-adtype string
         Only show devices whose Advertising data contains structures with specified type(s)
+  -filter-irk string
+        Only show devices which can be resolved by given IRK
   -filter-vendor string
         Only show devices whose vendor specific advertising data starts with given bytes
   -json
@@ -42,7 +44,6 @@ Usage of bluewalker:
   -ruuvi
         Scan and display information about found Ruuvi tags
   -unix string
-        Unix socket path where to write results
 ```
 
 Bluewalker needs the name of Bluetooth device to use as parameter. Available
@@ -98,25 +99,34 @@ some advertising structures (Flags are parsed, device name is printed, etc).
 
 If `-observer` option is given, then Bluewalker will print information about
 received packets as they are received instead of collecting them and printing
-summary information. 
+summary information.
 
 ### Filters
 
 To display information only about devices with given address, use
 `-filter-addr <address>`. Note that if device is advertising with random
-(private) address, add the address type after comma to the address string. 
-Multiple addresses can be given if they are separated by semicolons. 
+(private) address, add the address type after comma to the address string.
+Multiple addresses can be given if they are separated by semicolons.
 For example: `sudo ./bluewalker -device hci0 -filter-addr "4f:c0:f1:51:4f:22,random;57:68:4b:42:45:0a,random"`
 
-To filter devices based on the vendor specific advertising data, use 
+To filter devices based on the vendor specific advertising data, use
 `-filter-vendor <data>`, where data is matched against the start of vendor
 specific data (if one exists) in advertisement data. For example, to search
-all advertising apple devices use: `sudo ./bluewalker -device hci0 -filter-vendor 0x4c00` 
+all advertising apple devices use: `sudo ./bluewalker -device hci0 -filter-vendor 0x4c00`
 
 To filter devices based on the _type_ field of the Advertising Data, use
 `-filter-adtype <type>`, where type is comma -separated list of AD Types to allow (in hexadecimal).
 For example, to search all devices which have device name in advertisement data use:
-`sudo ./bluewalker -device hci0 -filter-adtype 0x08,0x09`. See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile for list of allowed AD Types. 
+`sudo ./bluewalker -device hci0 -filter-adtype 0x08,0x09`. See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile for list of allowed AD Types.
+
+To filter devices based on IRK (Identity Resolving Key), use `-filter-irk <key>`,
+where _key_ is 128-bit Identity Resolving Key to use to resolve resolvable
+private addresses (see, for example [here](https://blog.bluetooth.com/bluetooth-technology-protecting-your-privacy)).
+When filtering by IRK, results are shown only for devices who advertise with
+resolvable private address and whose address can be resolved with given IRK.
+
+*NOTE*: Bluewalker currently assumes that the key given as parameter contains bytes in
+same order as the IRK's stored by BlueZ in Linux.
 
 ### Scanning for RuuviTags
 
@@ -168,7 +178,7 @@ When data is written to stdout, the JSON structures are printed indented.
 When scanning in _collector_ mode, the scan results are presented as JSON
 array, where each element on the array represents one device and information
 gathered from it during scanning. In _observer_ mode, every received Advertising
-Data packet is printed in device information structure as it is received. 
+Data packet is printed in device information structure as it is received.
 
 The format for device information structure is
 ```
