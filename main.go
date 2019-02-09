@@ -33,6 +33,7 @@ type settings struct {
 	addrFilter   string
 	vendorFilter string
 	adTypeFilter string
+	irkFilter    string
 	ruuvi        bool
 	json         bool
 	socketPath   string
@@ -141,6 +142,7 @@ func init() {
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
+	flag.StringVar(&cmdline.irkFilter, "filter-irk", "", "Only show devices which can be resolved by given IRK")
 	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
@@ -179,6 +181,29 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 		parsed[i] = filter.ByAddress(baddr)
 	}
 	return parsed, nil
+}
+
+func parseIrkFilter(data string) (filter.AdFilter, error) {
+	if strings.HasPrefix(data, "0x") {
+		data = data[2:]
+	}
+	bytes, err := hex.DecodeString(data)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid IRK data (%v)", err)
+	}
+	if len(bytes) != hci.IrkLength {
+		return nil, fmt.Errorf("Invalid length for IRK, expected %d bytes, got %d", hci.IrkLength, len(bytes))
+	}
+
+	// We assume here that IRK given has LSB in position 0, that is because
+	// Linux has it that way. However, the address resolving assumes
+	// that key for AES has MSB in position 0 we must change it here.
+	irk := make([]byte, len(bytes))
+	for i, b := range bytes {
+		irk[len(bytes)-i-1] = b
+	}
+
+	return filter.ByIrk(irk), nil
 }
 
 func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
@@ -466,6 +491,15 @@ func main() {
 		for _, f := range filt {
 			filters = append(filters, f)
 		}
+	}
+
+	if cmdline.irkFilter != "" {
+		filt, err := parseIrkFilter(cmdline.irkFilter)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(255)
+		}
+		filters = append(filters, filt)
 	}
 
 	if cmdline.duration == 0 || cmdline.duration < -1 {
