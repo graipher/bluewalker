@@ -13,4 +13,5 @@ build-main-app:
 run-tests:
   stage: test
   script:
-   - CGO_ENABLED=0 go test gitlab.com/jtaimisto/bluewalker/...
+   - go test -race -coverprofile=.cov.out gitlab.com/jtaimisto/bluewalker/...
+   - go tool cover -func .cov.out
