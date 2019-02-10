@@ -7,6 +7,9 @@ controller and bypasses the Linux Bluetooth stack. This allows Bluewalker
 access to all Bluetooth LE Advertisement Data sent by nearby Bluetooth LE
 devices.
 
+[![pipeline status](https://gitlab.com/jtaimisto/bluewalker/badges/master/pipeline.svg)](https://gitlab.com/jtaimisto/bluewalker/commits/master)
+[![coverage report](https://gitlab.com/jtaimisto/bluewalker/badges/master/coverage.svg)](https://gitlab.com/jtaimisto/bluewalker/commits/master)
+
 ## Installing
 
 On Linux, with go 1.11 or newer installed:
@@ -44,6 +47,9 @@ Usage of bluewalker:
   -ruuvi
         Scan and display information about found Ruuvi tags
   -unix string
+        Unix socket path where to write results
+  -version
+        Print version number of the program
 ```
 
 Bluewalker needs the name of Bluetooth device to use as parameter. Available
