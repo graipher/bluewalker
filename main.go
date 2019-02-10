@@ -24,6 +24,11 @@ import (
 	"gitlab.com/jtaimisto/bluewalker/ruuvi"
 )
 
+const (
+	//BluewalkerVersion contains the current version string
+	BluewalkerVersion string = "0.1.0"
+)
+
 // Command line settings
 type settings struct {
 	device       string
@@ -38,6 +43,7 @@ type settings struct {
 	json         bool
 	socketPath   string
 	observer     bool
+	version      bool
 }
 
 type output struct {
@@ -147,6 +153,7 @@ func init() {
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
 	flag.BoolVar(&cmdline.observer, "observer", false, "Do scanning in observer mode (display advertising packets as they are received)")
+	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 }
 
 func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
@@ -444,6 +451,12 @@ func collectorLoop(reportChan chan *host.ScanReport, out *output) {
 func main() {
 
 	flag.Parse()
+
+	if cmdline.version {
+		fmt.Fprintf(os.Stdout, "%s v%s\n", os.Args[0], BluewalkerVersion)
+		os.Exit(0)
+	}
+
 	if cmdline.device == "" {
 		fmt.Fprintf(os.Stderr, "Missing device name\n")
 		os.Exit(255)
