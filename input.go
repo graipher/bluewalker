@@ -23,6 +23,7 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("Invalid address specification %q", addresses)
 			}
+			parts[1] = strings.TrimSpace(parts[1])
 			switch parts[1] {
 			case "public":
 				atype = hci.LePublicAddress
@@ -35,6 +36,7 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 			}
 			addr = parts[0]
 		}
+		addr = strings.TrimSpace(addr)
 		baddr, err := hci.BtAddressFromString(addr)
 		if err != nil {
 			return nil, fmt.Errorf("Invalid filter (%v)", err)
@@ -47,6 +49,7 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 }
 
 func parseByteArray(input string, length int) ([]byte, error) {
+	input = strings.TrimSpace(input)
 	if strings.HasPrefix(input, "0x") {
 		input = input[2:]
 	}

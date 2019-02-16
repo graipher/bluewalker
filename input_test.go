@@ -19,33 +19,45 @@ func TestParseAddressFilter(t *testing.T) {
 		input    string
 		valid    bool
 		expected []hci.BtAddress
-	}{{
-		"valid",
-		"11:22:33:44:55:66",
-		true,
-		[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LePublicAddress)},
-	}, {
-		"valid",
-		"11:22:33:44:55:66,public",
-		true,
-		[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LePublicAddress)},
-	}, {
-		"valid, random",
-		"11:22:33:44:55:66,random",
-		true,
-		[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress)},
-	}, {
-		"valid, private",
-		"11:22:33:44:55:66,private",
-		true,
-		[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress)},
-	}, {
-		"valid, two addresses",
-		"11:22:33:44:55:66,random;aa:bb:cc:11:22:33",
-		true,
-		[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress),
-			toAddr("aa:bb:cc:11:22:33", hci.LePublicAddress)},
-	},
+	}{
+		{
+			"valid",
+			"11:22:33:44:55:66",
+			true,
+			[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LePublicAddress)},
+		},
+		{
+			"valid",
+			"11:22:33:44:55:66,public",
+			true,
+			[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LePublicAddress)},
+		},
+		{
+			"valid, random",
+			"11:22:33:44:55:66, random",
+			true,
+			[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress)},
+		},
+		{
+			"valid, private",
+			"11:22:33:44:55:66,private",
+			true,
+			[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress)},
+		},
+		{
+			"valid, two addresses",
+			"11:22:33:44:55:66,random;aa:bb:cc:11:22:33",
+			true,
+			[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress),
+				toAddr("aa:bb:cc:11:22:33", hci.LePublicAddress)},
+		},
+		{
+			"valid, two addresses",
+			"11:22:33:44:55:66,random; aa:bb:cc:11:22:33",
+			true,
+			[]hci.BtAddress{toAddr("11:22:33:44:55:66", hci.LeRandomAddress),
+				toAddr("aa:bb:cc:11:22:33", hci.LePublicAddress)},
+		},
 		{
 			"Invalid address",
 			"11:22:44",
@@ -129,7 +141,7 @@ func TestParseAdTypeFilter(t *testing.T) {
 		},
 		{
 			"two",
-			"0x01,0x03",
+			"0x01, 0x03",
 			true,
 			[]hci.AdType{hci.AdFlags, hci.AdComplete16BitService},
 		},
@@ -250,7 +262,7 @@ func TestParseIrkFilter(t *testing.T) {
 		},
 		{
 			"valid, no 0x",
-			"1abc39e76110ff5ec8715b7907d056ad",
+			" 1abc39e76110ff5ec8715b7907d056ad ",
 			true,
 			toAddr("75:d3:32:a3:db:3a", hci.LeRandomAddress),
 		},
