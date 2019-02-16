@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -154,95 +153,6 @@ func init() {
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
 	flag.BoolVar(&cmdline.observer, "observer", false, "Do scanning in observer mode (display advertising packets as they are received)")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
-}
-
-func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
-
-	addrs := strings.Split(addresses, ";")
-	parsed := make([]filter.AdFilter, len(addrs))
-	for i, addr := range addrs {
-		atype := hci.LePublicAddress
-		if strings.Contains(addr, ",") {
-			parts := strings.Split(addr, ",")
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("Invalid address specification %q", addresses)
-			}
-			switch parts[1] {
-			case "public":
-				atype = hci.LePublicAddress
-			case "private":
-				fallthrough
-			case "random":
-				atype = hci.LeRandomAddress
-			default:
-				return nil, fmt.Errorf("Invalid address type %q", parts[1])
-			}
-			addr = parts[0]
-		}
-		baddr, err := hci.BtAddressFromString(addr)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid filter (%v)", err)
-		}
-		baddr.Atype = atype
-		log.Printf("Parsed address %s", baddr)
-		parsed[i] = filter.ByAddress(baddr)
-	}
-	return parsed, nil
-}
-
-func parseIrkFilter(data string) (filter.AdFilter, error) {
-	if strings.HasPrefix(data, "0x") {
-		data = data[2:]
-	}
-	bytes, err := hex.DecodeString(data)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid IRK data (%v)", err)
-	}
-	if len(bytes) != hci.IrkLength {
-		return nil, fmt.Errorf("Invalid length for IRK, expected %d bytes, got %d", hci.IrkLength, len(bytes))
-	}
-
-	// We assume here that IRK given has LSB in position 0, that is because
-	// Linux has it that way. However, the address resolving assumes
-	// that key for AES has MSB in position 0 we must change it here.
-	irk := make([]byte, len(bytes))
-	for i, b := range bytes {
-		irk[len(bytes)-i-1] = b
-	}
-
-	return filter.ByIrk(irk), nil
-}
-
-func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
-
-	if strings.HasPrefix(data, "0x") {
-		data = data[2:]
-	}
-	bytes, err := hex.DecodeString(data)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid vendor specific data specification (%v)", err)
-	}
-	return filter.ByVendor(bytes), nil
-}
-
-func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
-
-	parts := strings.Split(types, ",")
-	filters := make([]filter.AdFilter, len(parts))
-	for i, part := range parts {
-		if strings.HasPrefix(part, "0x") {
-			part = part[2:]
-		}
-		data, err := hex.DecodeString(part)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid Ad Type value %q (%v)", part, err)
-		}
-		if len(data) > 1 {
-			return nil, fmt.Errorf("Invald value for Ad Structure type (%s), expected one byte in hexadecimal", part)
-		}
-		filters[i] = filter.ByAdType(hci.AdType(data[0]))
-	}
-	return filters, nil
 }
 
 func formatAddress(addr hci.BtAddress) string {
