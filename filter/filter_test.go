@@ -119,3 +119,26 @@ func TestAdTypeFilteringNoMatch(t *testing.T) {
 	}
 
 }
+
+func TestIrkFiltering(t *testing.T) {
+	irk, _ := hex.DecodeString("1ABC39E76110FF5EC8715B7907D056AD")
+	filt := ByIrk(irk)
+
+	rep := buildAdvertisingReport("75:d3:32:a3:db:3a", nil)
+	rep.Address.Atype = hci.LeRandomAddress
+	rep2 := buildAdvertisingReport("75:d3:32:a3:db:3b", nil)
+	rep2.Address.Atype = hci.LeRandomAddress
+
+	if !filt.Filter(rep) {
+		t.Errorf("Expected filter to match")
+	}
+
+	if filt.Filter(rep2) {
+		t.Errorf("Did not expect the filter to match")
+	}
+
+	if !filt.Filter(rep) {
+		t.Errorf("Expected to match also 2nd time")
+	}
+
+}
