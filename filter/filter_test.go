@@ -142,3 +142,81 @@ func TestIrkFiltering(t *testing.T) {
 	}
 
 }
+
+func TestAnyFilterMatch(t *testing.T) {
+
+	addr, _ := hci.BtAddressFromString("11:22:33:44:55:66")
+	afilt := ByAddress(addr)
+	tfilt := ByAdType(hci.AdCompleteLocalName)
+
+	filt := Any([]AdFilter{afilt, tfilt})
+
+	namestruct := hci.AdStructure{
+		Typ:  hci.AdCompleteLocalName,
+		Data: nil,
+	}
+
+	snamestruct := hci.AdStructure{
+		Typ:  hci.AdShortenedLocalName,
+		Data: nil,
+	}
+
+	report1 := buildAdvertisingReport("11:22:33:44:55:66", []*hci.AdStructure{&snamestruct})
+	if !filt.Filter(report1) {
+		t.Errorf("Expected ANY to match")
+	}
+
+	report2 := buildAdvertisingReport("11:22:33:44:55:66", []*hci.AdStructure{&namestruct})
+	if !filt.Filter(report2) {
+		t.Errorf("Expected ANY to match")
+	}
+
+	report3 := buildAdvertisingReport("00:22:33:44:55:66", []*hci.AdStructure{&namestruct})
+	if !filt.Filter(report3) {
+		t.Errorf("Expected ANY to match")
+	}
+
+	report4 := buildAdvertisingReport("00:22:33:44:55:66", []*hci.AdStructure{&snamestruct})
+	if filt.Filter(report4) {
+		t.Errorf("Did not expect ANY to match")
+	}
+}
+
+func TestAllFilterMatch(t *testing.T) {
+
+	addr, _ := hci.BtAddressFromString("11:22:33:44:55:66")
+	afilt := ByAddress(addr)
+	tfilt := ByAdType(hci.AdCompleteLocalName)
+
+	filt := All([]AdFilter{afilt, tfilt})
+
+	namestruct := hci.AdStructure{
+		Typ:  hci.AdCompleteLocalName,
+		Data: nil,
+	}
+
+	snamestruct := hci.AdStructure{
+		Typ:  hci.AdShortenedLocalName,
+		Data: nil,
+	}
+
+	report1 := buildAdvertisingReport("11:22:33:44:55:66", []*hci.AdStructure{&snamestruct})
+	if filt.Filter(report1) {
+		t.Errorf("Did not expected ALL to match")
+	}
+
+	report2 := buildAdvertisingReport("11:22:33:44:55:66", []*hci.AdStructure{&namestruct})
+	if !filt.Filter(report2) {
+		t.Errorf("Did expect ALL to match")
+	}
+
+	report3 := buildAdvertisingReport("00:22:33:44:55:66", []*hci.AdStructure{&namestruct})
+	if filt.Filter(report3) {
+		t.Errorf("Did not expected ALL to match")
+	}
+
+	report4 := buildAdvertisingReport("00:22:33:44:55:66", []*hci.AdStructure{&snamestruct})
+	if filt.Filter(report4) {
+		t.Errorf("Did not expected ALL to match")
+	}
+}

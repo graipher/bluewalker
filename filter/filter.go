@@ -98,3 +98,63 @@ func (f *irkFilter) Filter(report *hci.AdvertisingReport) bool {
 func ByIrk(irk []byte) AdFilter {
 	return &irkFilter{irk: irk}
 }
+
+type filterCollection struct {
+	filters []AdFilter
+}
+
+func (fc *filterCollection) iterate(iter func(f AdFilter) bool) {
+	for _, f := range fc.filters {
+		if !iter(f) {
+			break
+		}
+	}
+}
+
+type anyCollection struct {
+	filterCollection
+}
+
+func (a *anyCollection) Filter(report *hci.AdvertisingReport) bool {
+
+	match := false
+	a.iterate(func(f AdFilter) bool {
+		if f.Filter(report) {
+			// Any: it is enough that one filter match, break on first match
+			match = true
+			return false
+		}
+		return true
+	})
+	return match
+}
+
+//Any returns a filter which matches if any of the given filters would match
+func Any(filters []AdFilter) AdFilter {
+	return &anyCollection{
+		filterCollection{filters: filters},
+	}
+}
+
+type allCollection struct {
+	filterCollection
+}
+
+func (a *allCollection) Filter(report *hci.AdvertisingReport) bool {
+	match := true
+	a.iterate(func(f AdFilter) bool {
+		if !f.Filter(report) {
+			match = false
+			return false
+		}
+		return true
+	})
+	return match
+}
+
+//All returns a filter which matches if all of the given filters would match
+func All(filters []AdFilter) AdFilter {
+	return &allCollection{
+		filterCollection{filters: filters},
+	}
+}
