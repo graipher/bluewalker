@@ -109,30 +109,34 @@ summary information.
 
 ### Filters
 
-To display information only about devices with given address, use
+ * To display information only about devices with given address, use
 `-filter-addr <address>`. Note that if device is advertising with random
 (private) address, add the address type after comma to the address string.
 Multiple addresses can be given if they are separated by semicolons.
 For example: `sudo ./bluewalker -device hci0 -filter-addr "4f:c0:f1:51:4f:22,random;57:68:4b:42:45:0a,random"`
 
-To filter devices based on the vendor specific advertising data, use
+ * To filter devices based on the vendor specific advertising data, use
 `-filter-vendor <data>`, where data is matched against the start of vendor
 specific data (if one exists) in advertisement data. For example, to search
 all advertising apple devices use: `sudo ./bluewalker -device hci0 -filter-vendor 0x4c00`
 
-To filter devices based on the _type_ field of the Advertising Data, use
+ * To filter devices based on the _type_ field of the Advertising Data, use
 `-filter-adtype <type>`, where type is comma -separated list of AD Types to allow (in hexadecimal).
 For example, to search all devices which have device name in advertisement data use:
 `sudo ./bluewalker -device hci0 -filter-adtype 0x08,0x09`. See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile for list of allowed AD Types.
 
-To filter devices based on IRK (Identity Resolving Key), use `-filter-irk <key>`,
+ * To filter devices based on IRK (Identity Resolving Key), use `-filter-irk <key>`,
 where _key_ is 128-bit Identity Resolving Key to use to resolve resolvable
 private addresses (see, for example [here](https://blog.bluetooth.com/bluetooth-technology-protecting-your-privacy)).
 When filtering by IRK, results are shown only for devices who advertise with
 resolvable private address and whose address can be resolved with given IRK.
-
 *NOTE*: Bluewalker currently assumes that the key given as parameter contains bytes in
 same order as the IRK's stored by BlueZ in Linux.
+
+If multiple different filters are given, only packages matching _all_ different
+filters are show. This applies only to different filters, if multiple addresses
+are given for address filter, packages from devices with any of those addresses
+are shown. Same applies to multiple AD Types given to AD type filter.
 
 ### Scanning for RuuviTags
 
