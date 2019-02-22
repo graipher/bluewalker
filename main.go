@@ -381,10 +381,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Address filters not supported on Ruuvi tag mode\n")
 			os.Exit(255)
 		}
-		var err error
-		if filters, err = parseAddressFilters(cmdline.addrFilter); err != nil {
+		if filt, err := parseAddressFilters(cmdline.addrFilter); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(255)
+		} else {
+			filters = append(filters, filt)
 		}
 	}
 
@@ -406,13 +407,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "AD type filter not supported on Ruuvi tag mode\n")
 			os.Exit(255)
 		}
-		filt, err := parseAdTypeFilters(cmdline.adTypeFilter)
-		if err != nil {
+		if filt, err := parseAdTypeFilters(cmdline.adTypeFilter); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(255)
-		}
-		for _, f := range filt {
-			filters = append(filters, f)
+		} else {
+			filters = append(filters, filt)
 		}
 	}
 

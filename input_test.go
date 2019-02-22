@@ -102,14 +102,7 @@ func TestParseAddressFilter(t *testing.T) {
 							Data:      nil,
 							Rssi:      -70,
 						}
-						match := false
-						for _, f := range filts {
-							if f.Filter(&report) {
-								match = true
-								break
-							}
-						}
-						if !match {
+						if !filts.Filter(&report) {
 							t.Errorf("%s: no match in any of the filters for %s", test.name, a.String())
 						}
 					}
@@ -177,14 +170,7 @@ func TestParseAdTypeFilter(t *testing.T) {
 						Address:   addr,
 						Data:      []*hci.AdStructure{&hci.AdStructure{Typ: adt, Data: []byte{}}},
 					}
-					match := false
-					for _, fi := range filts {
-						if fi.Filter(&report) {
-							match = true
-							break
-						}
-					}
-					if !match {
+					if !filts.Filter(&report) {
 						t.Errorf("%s : No match in filter for type %v", test.name, adt)
 					}
 				}

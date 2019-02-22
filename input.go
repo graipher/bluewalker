@@ -12,7 +12,7 @@ import (
 
 //parseAddressFilters parses one or more address filters from given
 //input from command line options
-func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
+func parseAddressFilters(addresses string) (filter.AdFilter, error) {
 
 	addrs := strings.Split(addresses, ";")
 	parsed := make([]filter.AdFilter, len(addrs))
@@ -45,7 +45,7 @@ func parseAddressFilters(addresses string) ([]filter.AdFilter, error) {
 		log.Printf("Parsed address %s", baddr)
 		parsed[i] = filter.ByAddress(baddr)
 	}
-	return parsed, nil
+	return filter.Any(parsed), nil
 }
 
 func parseByteArray(input string, length int) ([]byte, error) {
@@ -94,7 +94,7 @@ func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 
 //parseAdTypeFilters parses one or more filters for AD types from command
 //line parameters
-func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
+func parseAdTypeFilters(types string) (filter.AdFilter, error) {
 
 	parts := strings.Split(types, ",")
 	filters := make([]filter.AdFilter, len(parts))
@@ -105,5 +105,5 @@ func parseAdTypeFilters(types string) ([]filter.AdFilter, error) {
 		}
 		filters[i] = filter.ByAdType(hci.AdType(data[0]))
 	}
-	return filters, nil
+	return filter.Any(filters), nil
 }
