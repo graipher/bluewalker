@@ -53,7 +53,7 @@ type Host struct {
 	// through it.
 	ad chan *ScanReport
 	// Filters for incoming advertising reports
-	filters adfilters
+	filters filter.AdFilter
 	// flag indicating that host is closing.
 	// access needs to be protected using mux as event receiving goroutine
 	// is using this to indicate it should stop.
@@ -66,7 +66,7 @@ func New(tr hci.Transport) *Host {
 
 	host := new(Host)
 	host.tr = tr
-	host.filters = filterList()
+	host.filters = nil
 	host.evt = make(chan []byte, 2)
 	host.cmd = make(chan *exec)
 	host.cc = make(chan *hci.CommandCompleteEvent)
@@ -286,9 +286,7 @@ func (h *Host) Init() error {
 func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *ScanReport, error) {
 
 	if filters != nil && len(filters) > 0 {
-		for _, f := range filters {
-			h.filters = addFilter(h.filters, f)
-		}
+		h.filters = filter.All(filters)
 	}
 
 	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanParameters}
