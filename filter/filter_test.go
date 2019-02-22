@@ -180,6 +180,16 @@ func TestAnyFilterMatch(t *testing.T) {
 	if filt.Filter(report4) {
 		t.Errorf("Did not expect ANY to match")
 	}
+
+	// Try Any with only single filter
+	filt2 := Any([]AdFilter{afilt})
+	if !filt2.Filter(report1) {
+		t.Errorf("Expected Any w/ single filter to match")
+	}
+
+	if filt2.Filter(report3) {
+		t.Errorf("Did not expect Any w/ single filter to match")
+	}
 }
 
 func TestAllFilterMatch(t *testing.T) {
@@ -218,5 +228,14 @@ func TestAllFilterMatch(t *testing.T) {
 	report4 := buildAdvertisingReport("00:22:33:44:55:66", []*hci.AdStructure{&snamestruct})
 	if filt.Filter(report4) {
 		t.Errorf("Did not expected ALL to match")
+	}
+
+	filt2 := All([]AdFilter{afilt})
+	if !filt2.Filter(report1) {
+		t.Errorf("Expected to All w/ single filter to match")
+	}
+
+	if filt2.Filter(report3) {
+		t.Errorf("Did not expect All w/ single filter to match")
 	}
 }
