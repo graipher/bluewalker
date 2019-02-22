@@ -131,6 +131,9 @@ func (a *anyCollection) Filter(report *hci.AdvertisingReport) bool {
 
 //Any returns a filter which matches if any of the given filters would match
 func Any(filters []AdFilter) AdFilter {
+	if len(filters) == 1 {
+		return filters[0]
+	}
 	return &anyCollection{
 		filterCollection{filters: filters},
 	}
@@ -154,6 +157,9 @@ func (a *allCollection) Filter(report *hci.AdvertisingReport) bool {
 
 //All returns a filter which matches if all of the given filters would match
 func All(filters []AdFilter) AdFilter {
+	if len(filters) == 1 {
+		return filters[0]
+	}
 	return &allCollection{
 		filterCollection{filters: filters},
 	}
