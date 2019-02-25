@@ -133,9 +133,9 @@ resolvable private address and whose address can be resolved with given IRK.
 *NOTE*: Bluewalker currently assumes that the key given as parameter contains bytes in
 same order as the IRK's stored by BlueZ in Linux.
 
-If multiple different filters are given, only packages matching _all_ different
+If multiple different filters are given, only packets matching _all_ different
 filters are show. This applies only to different filters, if multiple addresses
-are given for address filter, packages from devices with any of those addresses
+are given for address filter, packets from devices with any of those addresses
 are shown. Same applies to multiple AD Types given to AD type filter.
 
 ### Scanning for RuuviTags
