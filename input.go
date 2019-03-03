@@ -107,3 +107,26 @@ func parseAdTypeFilters(types string) (filter.AdFilter, error) {
 	}
 	return filter.Any(filters), nil
 }
+
+//parseAdStructures parses one or more Ad Structures from command line parameters
+func parseAdStructures(structs string) ([]*hci.AdStructure, error) {
+
+	ads := strings.Split(structs, ";")
+	ret := make([]*hci.AdStructure, 0)
+	for _, ad := range ads {
+		parts := strings.Split(ad, ",")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("Expected Ad Structure as \"<type>,<data>\"")
+		}
+		typ, err := parseByteArray(parts[0], 1)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid Ad Structure type %s (%s)", parts[0], err.Error())
+		}
+		data, err := parseByteArray(parts[1], -1)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid value for Ad Structure data (%s)", err.Error())
+		}
+		ret = append(ret, &hci.AdStructure{Typ: hci.AdType(typ[0]), Data: data})
+	}
+	return ret, nil
+}

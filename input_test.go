@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
@@ -286,6 +287,82 @@ func TestParseIrkFilter(t *testing.T) {
 
 				if filter.Filter(&report) {
 					t.Errorf("%s expected the filter to match", test.name)
+				}
+			}
+		})
+	}
+}
+func TestParseAdStructue(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		input    string
+		valid    bool
+		expected []hci.AdStructure
+	}{
+		{
+			"valid",
+			"0x01, 0x010203",
+			true,
+			[]hci.AdStructure{hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x01, 0x02, 0x03}}},
+		},
+		{
+			"valid, multiple",
+			"0x01, 0x010203; 0x0a, 0x0001",
+			true,
+			[]hci.AdStructure{
+				hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x01, 0x02, 0x03}},
+				hci.AdStructure{Typ: hci.AdTxPower, Data: []byte{0x00, 0x01}},
+			},
+		},
+		{
+			"invalid",
+			"0x01, 0x02, 0x03",
+			false,
+			nil,
+		},
+		{
+			"invalid, second",
+			"0x01, 0x0203; 0x02, 0x03, 0x04",
+			false,
+			nil,
+		},
+		{
+			"invalid type",
+			"0xgg, 0x010203",
+			false,
+			nil,
+		},
+		{
+			"invalid data",
+			"0x01, 0x02gg03",
+			false,
+			nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ads, err := parseAdStructures(test.input)
+			if test.valid {
+				if err != nil {
+					t.Errorf("Unexpected error %s", err.Error())
+				}
+
+				if len(ads) != len(test.expected) {
+					t.Errorf("Parsed invalid number of structures (%d, exepected %d)", len(ads), len(test.expected))
+				}
+				for i, a := range ads {
+					if a.Typ != test.expected[i].Typ {
+						t.Errorf("Invalid type %v parsed, expected %v", a.Typ, test.expected[i].Typ)
+					}
+					if bytes.Compare(a.Data, test.expected[i].Data) != 0 {
+						t.Errorf("Parsed data did not match expected data")
+					}
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, got none")
 				}
 			}
 		})
