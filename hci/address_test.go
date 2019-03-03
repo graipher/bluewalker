@@ -1,6 +1,7 @@
 package hci
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -145,5 +146,26 @@ func TestResolve(t *testing.T) {
 
 	if address2.Resolve(irk) {
 		t.Errorf("Resolved address which should not be resolved")
+	}
+}
+
+func TestPut(t *testing.T) {
+
+	addr, _ := BtAddressFromString("11:22:33:44:55:66")
+	buf := make([]byte, 6)
+
+	addr.Put(buf)
+	if bytes.Compare(buf, []byte{0x66, 0x55, 0x44, 0x33, 0x22, 0x11}) != 0 {
+		t.Errorf("Invalid data in Put() buffer")
+	}
+}
+
+func TestPutSmall(t *testing.T) {
+	addr, _ := BtAddressFromString("11:22:33:44:55:66")
+	buf := make([]byte, 3)
+
+	addr.Put(buf)
+	if bytes.Compare(buf, []byte{0x66, 0x55, 0x44}) != 0 {
+		t.Errorf("Invalid data in Put() buffer")
 	}
 }

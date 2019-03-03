@@ -17,6 +17,11 @@ type BtAddress struct {
 	Atype BtAddressType
 }
 
+// Put will put the address bytes of this BtAddress into given buffer
+func (ba BtAddress) Put(buf []byte) {
+	copy(buf, ba.raw[0:])
+}
+
 func (ba BtAddress) String() string {
 	return fmt.Sprintf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", ba.raw[5], ba.raw[4], ba.raw[3], ba.raw[2], ba.raw[1], ba.raw[0])
 }
