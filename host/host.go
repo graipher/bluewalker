@@ -343,6 +343,116 @@ func (h *Host) StopScanning() error {
 	return nil
 }
 
+//SetAdvertisingParams set advertising params to the controller.
+// hci.DefaultAdvParameters() can be used to get default set of parameters.
+func (h *Host) SetAdvertisingParams(advParams hci.AdvertisingParameters) error {
+
+	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetAdvParameters}
+	params := make([]byte, 15)
+
+	// Min advertising interval
+	binary.LittleEndian.PutUint16(params[0:2], advParams.IntervalMin)
+	// Max advertising interval
+	binary.LittleEndian.PutUint16(params[2:4], advParams.IntervalMax)
+	// advertising type
+	params[4] = byte(advParams.Type)
+	// Own Address Type
+	params[5] = byte(advParams.OwnAddrType)
+	// Peer address type
+	if advParams.PeerAddress.Atype == hci.LePublicAddress {
+		params[6] = 0x00
+	} else {
+		params[6] = 0x01
+	}
+	// peer address
+	advParams.PeerAddress.Put(params[7:])
+	// Channel Map
+	params[13] = byte(advParams.ChannelMap)
+	// Filter policy
+	params[14] = byte(advParams.FilterPolicy)
+
+	cmd.Parameters(params)
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to set advertising parameters: %s", err.Error())
+	}
+	return nil
+}
+
+func putAdvData(buf []byte, datas []*hci.AdStructure) (int, error) {
+	offset := 0
+	for i, ad := range datas {
+		n, err := ad.EncodeTo(buf[offset:])
+		if err != nil {
+			return 0, fmt.Errorf("Advertising Data %d could not be written (%s)", i, err.Error())
+		}
+		offset += n
+	}
+	return offset, nil
+}
+
+func (h *Host) setAdvData(data []*hci.AdStructure, scanResp bool) error {
+	var opcode hci.CommandOpCode
+	if scanResp {
+		opcode = hci.CommandLeSetScanResponse
+	} else {
+		opcode = hci.CommandLeSetAdvData
+	}
+	cmd := hci.CommandPacket{OpCode: opcode}
+	params := make([]byte, 32)
+	len, err := putAdvData(params[1:], data)
+	if err != nil {
+		return err
+	}
+	params[0] = byte(len)
+	cmd.Parameters(params)
+
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable set advertising data: %s", err.Error())
+	}
+
+	return nil
+}
+
+//SetAdvertisingData sets the advertising data that will be sent
+//when advertising is enabled
+func (h *Host) SetAdvertisingData(data []*hci.AdStructure) error {
+	return h.setAdvData(data, false)
+}
+
+//SetScanResponse sets the scan response data which will be sent
+//when advertising and the mode allows it.
+func (h *Host) SetScanResponse(data []*hci.AdStructure) error {
+	return h.setAdvData(data, true)
+}
+
+//StartAdvertising directs the controller to start sending advertisments
+func (h *Host) StartAdvertising() error {
+
+	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetAdvEnable}
+	params := make([]byte, 1)
+	// Enabled
+	params[0] = 0x01
+	cmd.Parameters(params)
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to start advertising: %s", err.Error())
+	}
+	return nil
+}
+
+//StopAdvertising directs the controller to stop sending advertisments
+func (h *Host) StopAdvertising() error {
+
+	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetAdvEnable}
+	params := make([]byte, 1)
+	// Enabled
+	params[0] = 0x00
+	cmd.Parameters(params)
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to start advertising: %s", err.Error())
+	}
+	return nil
+}
+
 // Deinit will deinitialize Host
 func (h *Host) Deinit() {
 	log.Printf("Deinitializing host")
