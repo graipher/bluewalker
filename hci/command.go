@@ -15,6 +15,10 @@ const (
 	CommandSetEventMask         CommandOpCode = 0x0c01
 	CommandWriteLeHostSupported CommandOpCode = 0x0c6d
 	CommandLeSetEventMask       CommandOpCode = 0x2001
+	CommandLeSetAdvParameters   CommandOpCode = 0x2006
+	CommandLeSetAdvData         CommandOpCode = 0x2008
+	CommandLeSetScanResponse    CommandOpCode = 0x2009
+	CommandLeSetAdvEnable       CommandOpCode = 0x200a
 	CommandLeSetScanParameters  CommandOpCode = 0x200b
 	CommandLeSetScanEnable      CommandOpCode = 0x200c
 )
@@ -27,6 +31,14 @@ func (op CommandOpCode) String() string {
 		return "Set LE Event Mask"
 	case CommandSetEventMask:
 		return "Set Event Mask"
+	case CommandLeSetAdvParameters:
+		return "LE Set Advertising Parameters"
+	case CommandLeSetAdvData:
+		return "LE Set Advertising Data"
+	case CommandLeSetScanResponse:
+		return "LE Set Scan Response"
+	case CommandLeSetAdvEnable:
+		return "LE Set Advertising Enable"
 	case CommandWriteLeHostSupported:
 		return "Write LE Host Supported"
 	case CommandLeSetScanParameters:
