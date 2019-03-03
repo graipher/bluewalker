@@ -23,17 +23,57 @@ const (
 	HciEventPacket byte = 0x04
 )
 
+//AdvChannelMap defines the advertising channel(s) to use
+// See Bluetooth 5.0, vol 2, parth E, ch 7.8.5
+type AdvChannelMap int
+
+//Values for AdvChannelMap
+const (
+	AdvChannel37  AdvChannelMap = 0x01
+	AdvChannel38  AdvChannelMap = 0x01 << 1
+	AdvChannel39  AdvChannelMap = 0x01 << 2
+	AdvChannelAll AdvChannelMap = (AdvChannel37 | AdvChannel38 | AdvChannel39)
+)
+
+//AdvFilterPolicy defines what scan and connection requests are accepted
+type AdvFilterPolicy byte
+
+//Values for AdvFilterPolicy
+const (
+	//Scan and connection requests from all
+	ScanConnAll AdvFilterPolicy = 0x00
+	//Scan requests from all connection requests from white list
+	ScanAllConnWhite AdvFilterPolicy = 0x01
+	//Scan requests from white list and connect requests from all
+	ScanWhiteConnAll AdvFilterPolicy = 0x02
+	// Scan and connection requests from white list
+	ScanConnWhite = 0x03
+)
+
+//AdvAddressType defines values for 'Own Address Type' advertising parameter.
+// See Bluetooth 5.0, vol 2, part E, ch 7.8.5
+type AdvAddressType byte
+
+// Allowed values for AdvAddressType
+const (
+	AdvAddressPublic           AdvAddressType = 0x00
+	AdvAddressRandom           AdvAddressType = 0x01
+	AdvAddressGenerateOrPublic AdvAddressType = 0x02
+	AdvAddressGenerateOrRandom AdvAddressType = 0x03
+)
+
 // AdvType defines the Advertising Event Type
 // See Bluetooth 5.0, vol 2, part E, ch 7.7.65.2
 type AdvType byte
 
 // Advertising type values
 const (
-	AdvInd        AdvType = 0x00
-	AdvDirectInd  AdvType = 0x01
-	AdvScanInd    AdvType = 0x02
-	AdvNonconnInd AdvType = 0x03
-	ScanRsp       AdvType = 0x04
+	AdvInd          AdvType = 0x00
+	AdvDirectInd    AdvType = 0x01
+	AdvScanInd      AdvType = 0x02
+	AdvNonconnInd   AdvType = 0x03
+	ScanRsp         AdvType = 0x04
+	AdvDirectIndLow AdvType = 0x04 // DIRECT_IND, low duty cycle, when advertising
 )
 
 const (
@@ -90,6 +130,31 @@ func (adv *AdvType) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("Invalid Advertising type value")
 	}
 	return nil
+}
+
+//AdvertisingParameters can be used to set advertising parameters for controller
+// See Bluetooth 5.0 vol 2, part E, ch 7.8.5
+type AdvertisingParameters struct {
+	IntervalMin  uint16
+	IntervalMax  uint16
+	Type         AdvType
+	OwnAddrType  AdvAddressType
+	PeerAddress  BtAddress
+	ChannelMap   AdvChannelMap
+	FilterPolicy AdvFilterPolicy
+}
+
+//DefaultAdvParameters returns AdvertisingParameters struct with all values set to defaults.
+func DefaultAdvParameters() AdvertisingParameters {
+
+	return AdvertisingParameters{
+		IntervalMin:  0x0800,
+		IntervalMax:  0x0800,
+		Type:         AdvNonconnInd,
+		OwnAddrType:  AdvAddressPublic,
+		ChannelMap:   AdvChannelAll,
+		FilterPolicy: ScanConnAll,
+	}
 }
 
 //AdvertisingReport represents data parsed from LE Advertising Report
@@ -268,6 +333,21 @@ func (ad AdType) String() string {
 type AdStructure struct {
 	Typ  AdType `json:"type"`
 	Data []byte `json:"data"`
+}
+
+//EncodeTo encodes AdStructure into given byte buffer. The buffer should
+//be big enough to hold the data or error is returned. On success, returns
+//the number of bytes written.
+// See Bluetooth v5.0 vol 3, part C, ch 11
+func (ad *AdStructure) EncodeTo(buf []byte) (int, error) {
+	length := len(ad.Data) + 1 // (type + data)
+	if len(buf) < length+1 {
+		return 0, fmt.Errorf("Buffer too small to hold AD structure data")
+	}
+	buf[0] = byte(length)
+	buf[1] = byte(ad.Typ)
+	copy(buf[2:], ad.Data)
+	return length + 1, nil
 }
 
 func (ad *AdStructure) String() string {

@@ -1,6 +1,7 @@
 package hci
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 )
@@ -50,6 +51,63 @@ func TestInvalidAdStruture(t *testing.T) {
 		t.Errorf("Decoded AD structure with invalid length")
 	}
 
+}
+
+func TestEncodeAdStructure(t *testing.T) {
+
+	testdata := []struct {
+		name     string
+		ad       AdStructure
+		expected []byte
+		buf      []byte
+	}{
+		{
+			name:     "happy",
+			ad:       AdStructure{Typ: AdFlags, Data: []byte{0x01, 0x02}},
+			expected: []byte{0x03, 0x01, 0x01, 0x02},
+			buf:      make([]byte, 31),
+		},
+		{
+			name:     "just fit",
+			ad:       AdStructure{Typ: AdFlags, Data: []byte{0x01, 0x02}},
+			expected: []byte{0x03, 0x01, 0x01, 0x02},
+			buf:      make([]byte, 4),
+		},
+		{
+			name:     "no Data",
+			ad:       AdStructure{Typ: AdFlags, Data: nil},
+			expected: []byte{0x01, 0x01},
+			buf:      make([]byte, 31),
+		},
+		{
+			name:     "too small buffer",
+			ad:       AdStructure{Typ: AdFlags, Data: []byte{0x01, 0x02}},
+			expected: nil,
+			buf:      make([]byte, 2),
+		},
+	}
+
+	for _, test := range testdata {
+		t.Run(test.name, func(t *testing.T) {
+			n, err := test.ad.EncodeTo(test.buf)
+			if test.expected != nil {
+				if err != nil {
+					t.Fatalf("Unexpected error %s", err.Error())
+				}
+				if n != len(test.expected) {
+					t.Errorf("Encoded length %d bytes, expected %d bytes", n, len(test.expected))
+				}
+				encoded := test.buf[0:n]
+				if bytes.Compare(encoded, test.expected) != 0 {
+					t.Errorf("Encoded byte array is not expected")
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, did not get one")
+				}
+			}
+		})
+	}
 }
 
 func TestParseStructures(t *testing.T) {
