@@ -91,6 +91,12 @@ func (cc *CommandCompleteEvent) GetCommandOpcode() CommandOpCode {
 	return CommandOpCode(le.Uint16(cc.parameters[1:]))
 }
 
+//HasReturnParameters returns true if this command complete event contains
+//return parameters
+func (cc *CommandCompleteEvent) HasReturnParameters() bool {
+	return len(cc.parameters) > 3
+}
+
 // GetReturnParameters returns the return parameters for this event
 func (cc *CommandCompleteEvent) GetReturnParameters() []byte {
 	return cc.parameters[3:]

@@ -75,12 +75,36 @@ func TestDecodeCommandComplete(t *testing.T) {
 	if cc.GetNumHciCommandPackets() != 1 {
 		t.Errorf("Decoded invalid num HCI packets")
 	}
+	if !cc.HasReturnParameters() {
+		t.Errorf("Expected CC to have return parameters")
+	}
 	params := cc.GetReturnParameters()
 	if len(params) != 1 || params[0] != 0x00 {
 		t.Errorf("Decoded invalid return parameters")
 	}
 	if cc.GetStatusParameter() != StatusSuccess {
 		t.Errorf("Decoded invalid status")
+	}
+}
+
+func TestCommandCompleteHasNoParamaters(t *testing.T) {
+	buf, _ := hex.DecodeString("0e0301030c")
+	ev, err := DecodeEvent(buf)
+	if err != nil {
+		t.Errorf("Unexpected error while parsing event: %v", err)
+	}
+	cc, err := DecodeCommandComplete(ev)
+	if err != nil {
+		t.Errorf("Was not able to decode CC with no return parameters")
+	}
+	if cc.GetCommandOpcode() != CommandReset {
+		t.Errorf("Decoded invalid opcode")
+	}
+	if cc.GetNumHciCommandPackets() != 1 {
+		t.Errorf("Decoded invalid num HCI packets")
+	}
+	if cc.HasReturnParameters() {
+		t.Errorf("Expected CC to have no return parameters")
 	}
 }
 
