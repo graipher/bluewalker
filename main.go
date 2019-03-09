@@ -43,6 +43,8 @@ type settings struct {
 	socketPath   string
 	observer     bool
 	version      bool
+	broadcaster  bool
+	advData      string
 }
 
 type output struct {
@@ -152,6 +154,8 @@ func init() {
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
 	flag.BoolVar(&cmdline.observer, "observer", false, "Do scanning in observer mode (display advertising packets as they are received)")
+	flag.BoolVar(&cmdline.broadcaster, "broadcast", false, "Send advertising data instead of scanning for it")
+	flag.StringVar(&cmdline.advData, "adv-data", "", "Advertising data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 }
 
@@ -424,6 +428,38 @@ func main() {
 		filters = append(filters, filt)
 	}
 
+	if cmdline.broadcaster {
+		if len(filters) > 0 {
+			fmt.Fprintf(os.Stderr, "Filters not available on broadcaster mode\n")
+			os.Exit(255)
+		}
+		if cmdline.ruuvi {
+			fmt.Fprintf(os.Stderr, "Ruuvi mode not available on broadcaster mode\n")
+			os.Exit(255)
+		}
+		if cmdline.json {
+			fmt.Fprintf(os.Stderr, "No json output on broadcaster mode\n")
+			os.Exit(255)
+		}
+		if cmdline.observer {
+			fmt.Fprintf(os.Stderr, "No observer mode when broadcasting\n")
+			os.Exit(255)
+		}
+		if cmdline.socketPath != "" {
+			fmt.Fprintf(os.Stderr, "No unix socket support on broadcaster mode\n")
+			os.Exit(255)
+		}
+		if cmdline.advData == "" {
+			fmt.Fprintf(os.Stderr, "No Advertising Data set\n")
+			os.Exit(255)
+		}
+	} else {
+		if cmdline.advData != "" {
+			fmt.Fprintf(os.Stderr, "Advertising data can be set only on broadcaster mode\n")
+			os.Exit(255)
+		}
+	}
+
 	if cmdline.duration == 0 || cmdline.duration < -1 {
 		fmt.Fprintf(os.Stderr, "Invalid duration %d\n", cmdline.duration)
 		os.Exit(255)
@@ -452,8 +488,20 @@ func main() {
 		loop = ruuviLoop
 	} else if cmdline.observer {
 		loop = observerLoop
+	} else if cmdline.broadcaster {
+		loop = nil
 	} else {
 		loop = collectorLoop
+	}
+
+	var ads []*hci.AdStructure
+	if cmdline.broadcaster {
+		if data, err := parseAdStructures(cmdline.advData); err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid Advertising Data given: %v\n", err)
+			os.Exit(255)
+		} else {
+			ads = data
+		}
 	}
 
 	log.Printf("Using device %s ", cmdline.device)
@@ -473,19 +521,46 @@ func main() {
 		os.Exit(255)
 	}
 
-	reportChan, err := host.StartScanning(cmdline.active, filters)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start scanning: %v\n", err)
-		host.Deinit()
-		os.Exit(255)
-	}
-
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		loop(reportChan, out)
-		wg.Done()
-	}()
+	if cmdline.broadcaster {
+		params := hci.DefaultAdvParameters()
+		if err := host.SetAdvertisingParams(params); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to set advertising parameters: %v\n", err)
+			host.Deinit()
+			os.Exit(255)
+		}
+
+		bld := new(strings.Builder)
+		fmt.Fprintf(bld, "Setting advertising data:\n")
+		for _, a := range ads {
+			fmt.Fprintf(bld, "\t%s\n", a.String())
+		}
+		out.write(bld.String())
+		if err := host.SetAdvertisingData(ads); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to set advertising data: %v\n", err)
+			host.Deinit()
+			os.Exit(255)
+		}
+		if err := host.StartAdvertising(); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to start advertising: %v\n", err)
+			host.Deinit()
+			os.Exit(255)
+		}
+		out.write("Advertising...")
+	} else {
+		reportChan, err := host.StartScanning(cmdline.active, filters)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to start scanning: %v\n", err)
+			host.Deinit()
+			os.Exit(255)
+		}
+
+		wg.Add(1)
+		go func() {
+			loop(reportChan, out)
+			wg.Done()
+		}()
+	}
 
 	if cmdline.duration == -1 {
 		select {
@@ -502,7 +577,14 @@ func main() {
 
 		}
 	}
-	host.StopScanning()
+
+	if cmdline.broadcaster {
+		host.StopAdvertising()
+		out.write(".Done\n")
+	} else {
+		host.StopScanning()
+	}
+
 	host.Deinit()
 	wg.Wait()
 }
