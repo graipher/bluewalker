@@ -45,6 +45,7 @@ type settings struct {
 	version      bool
 	broadcaster  bool
 	advData      string
+	scanResp     string
 }
 
 type output struct {
@@ -155,7 +156,8 @@ func init() {
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
 	flag.BoolVar(&cmdline.observer, "observer", false, "Do scanning in observer mode (display advertising packets as they are received)")
 	flag.BoolVar(&cmdline.broadcaster, "broadcast", false, "Send advertising data instead of scanning for it")
-	flag.StringVar(&cmdline.advData, "adv-data", "", "Advertising data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal")
+	flag.StringVar(&cmdline.advData, "adv-data", "", "Advertising data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
+	flag.StringVar(&cmdline.scanResp, "scan-resp", "", "Scan response data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 }
 
@@ -454,8 +456,8 @@ func main() {
 			os.Exit(255)
 		}
 	} else {
-		if cmdline.advData != "" {
-			fmt.Fprintf(os.Stderr, "Advertising data can be set only on broadcaster mode\n")
+		if cmdline.advData != "" || cmdline.scanResp != "" {
+			fmt.Fprintf(os.Stderr, "Advertising or scan response data can be set only on broadcaster mode\n")
 			os.Exit(255)
 		}
 	}
@@ -495,12 +497,21 @@ func main() {
 	}
 
 	var ads []*hci.AdStructure
+	var scanResp []*hci.AdStructure
 	if cmdline.broadcaster {
 		if data, err := parseAdStructures(cmdline.advData); err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid Advertising Data given: %v\n", err)
 			os.Exit(255)
 		} else {
 			ads = data
+		}
+		if cmdline.scanResp != "" {
+			if data, err := parseAdStructures(cmdline.scanResp); err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid scan response data given: %v\n", err)
+				os.Exit(255)
+			} else {
+				scanResp = data
+			}
 		}
 	}
 
@@ -524,6 +535,11 @@ func main() {
 	var wg sync.WaitGroup
 	if cmdline.broadcaster {
 		params := hci.DefaultAdvParameters()
+		if scanResp != nil {
+			// scan response will be set also, set advertising type to
+			// scannable
+			params.Type = hci.AdvScanInd
+		}
 		if err := host.SetAdvertisingParams(params); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to set advertising parameters: %v\n", err)
 			host.Deinit()
@@ -540,6 +556,19 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Unable to set advertising data: %v\n", err)
 			host.Deinit()
 			os.Exit(255)
+		}
+		if scanResp != nil {
+			bld.Reset()
+			fmt.Fprintf(bld, "Setting scan response data:\n")
+			for _, a := range scanResp {
+				fmt.Fprintf(bld, "\t%s\n", a.String())
+			}
+			out.write(bld.String())
+			if err := host.SetScanResponse(scanResp); err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to set Scan Response data: %v\n", err)
+				host.Deinit()
+				os.Exit(255)
+			}
 		}
 		if err := host.StartAdvertising(); err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to start advertising: %v\n", err)
