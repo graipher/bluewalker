@@ -206,8 +206,12 @@ func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
 	e := new(exec)
 	e.cmd = cmd
 	e.complete = func(cc *hci.CommandCompleteEvent) {
-		if cc.GetStatusParameter() != hci.StatusSuccess {
-			err = fmt.Errorf("Command Failed: %s", cc.GetStatusParameter().String())
+		if cc.HasReturnParameters() {
+			if cc.GetStatusParameter() != hci.StatusSuccess {
+				err = fmt.Errorf("Command Failed: %s", cc.GetStatusParameter().String())
+			}
+		} else {
+			err = fmt.Errorf("Received unexpected Command Complete with no status")
 		}
 		wg.Done()
 	}

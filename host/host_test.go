@@ -123,6 +123,32 @@ func TestCommandExecFail2(t *testing.T) {
 	}
 }
 
+func TestCommandExecWithCCWithoutStatus(t *testing.T) {
+	h := New(nil)
+	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
+	ch := make(chan error)
+
+	buf := make([]byte, 5)
+	buf[0] = byte(hci.EventCodeCommandComplete)
+	buf[1] = 3 // length
+	buf[2] = 0x01
+	binary.LittleEndian.PutUint16(buf[3:], uint16(hci.CommandReset))
+
+	evt, _ := hci.DecodeEvent(buf)
+	cc, _ := hci.DecodeCommandComplete(evt)
+
+	go func(errChan chan error) {
+		errChan <- h.executeStatusCommand(&cmd)
+	}(ch)
+	exec := <-h.cmd
+	exec.complete(cc)
+
+	err := <-ch
+	if err == nil {
+		t.Errorf("Expected execution to fail")
+	}
+}
+
 func TestExecutorHappy(t *testing.T) {
 
 	trp := new(testTransport)
