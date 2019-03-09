@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -335,146 +336,402 @@ func TestEventReceiver(t *testing.T) {
 	h.wg.Wait()
 }
 
-func TestInitHappy(t *testing.T) {
+const (
+	paramStartOffset int = 4
+)
 
-	initCommands := []hci.CommandOpCode{hci.CommandReset, hci.CommandWriteLeHostSupported, hci.CommandSetEventMask, hci.CommandLeSetEventMask}
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		err := h.initializeController()
-		ch <- err
-	}()
+type checkfn func(encoded []byte, t *testing.T)
 
-	for i := 0; i < len(initCommands); i++ {
-		cmd := <-h.cmd
-		if cmd.cmd.OpCode != initCommands[i] {
-			t.Errorf("Expected command %s, got %s", initCommands[i].String(), cmd.cmd.OpCode.String())
-		}
-		cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, initCommands[i], 1, t))
+func TestCommand(t *testing.T) {
+
+	tests := []struct {
+		name        string
+		doCommand   func(h *Host, ch chan error)
+		expectedOps []hci.CommandOpCode
+		check       []checkfn
+		statuses    []hci.ErrorCode
+		expectErr   bool
+	}{
+		{
+			"Test init",
+			func(h *Host, ch chan error) {
+				ch <- h.initializeController()
+			},
+			[]hci.CommandOpCode{hci.CommandReset, hci.CommandWriteLeHostSupported, hci.CommandSetEventMask, hci.CommandLeSetEventMask},
+			[]checkfn{nil, nil, nil, nil},
+			[]hci.ErrorCode{hci.StatusSuccess, hci.StatusSuccess, hci.StatusSuccess, hci.StatusSuccess},
+			false,
+		},
+		{
+			"Test init Fail",
+			func(h *Host, ch chan error) {
+				ch <- h.initializeController()
+			},
+			[]hci.CommandOpCode{hci.CommandReset, hci.CommandWriteLeHostSupported},
+			[]checkfn{nil, nil},
+			[]hci.ErrorCode{hci.StatusSuccess, hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Start advertising",
+			func(h *Host, ch chan error) {
+				ch <- h.StartAdvertising()
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvEnable},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+1 {
+					t.Errorf("Invalid lenght for parameters")
+				}
+				if encoded[paramStartOffset] != 0x01 {
+					t.Errorf("Unexpected parameter")
+				}
+
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Start advertising fail",
+			func(h *Host, ch chan error) {
+				ch <- h.StartAdvertising()
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvEnable},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Stop advertising",
+			func(h *Host, ch chan error) {
+				ch <- h.StopAdvertising()
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvEnable},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+1 {
+					t.Errorf("Invalid lenght for parameters")
+				}
+				if encoded[paramStartOffset] != 0x00 {
+					t.Errorf("Unexpected parameter")
+				}
+
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Stop advertising fail",
+			func(h *Host, ch chan error) {
+				ch <- h.StopAdvertising()
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvEnable},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Start Scanning",
+			func(h *Host, ch chan error) {
+				_, err := h.StartScanning(false, nil)
+				ch <- err
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanParameters, hci.CommandLeSetScanEnable},
+			[]checkfn{
+				func(encoded []byte, t *testing.T) {
+					if len(encoded) != paramStartOffset+7 {
+						t.Errorf("Invalid length for set scan parameters")
+					}
+					if encoded[paramStartOffset] != 0x00 {
+						t.Errorf("Expected passive scanning by default")
+					}
+				},
+				func(encoded []byte, t *testing.T) {
+					if len(encoded) != paramStartOffset+2 {
+						t.Errorf("Invalid length for scan enable")
+					}
+					if encoded[paramStartOffset] != 0x01 {
+						t.Errorf("Scan not enabled")
+					}
+				},
+			},
+			[]hci.ErrorCode{hci.StatusSuccess, hci.StatusSuccess},
+			false,
+		},
+		{
+			"Start Scanning passive",
+			func(h *Host, ch chan error) {
+				_, err := h.StartScanning(true, nil)
+				ch <- err
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanParameters, hci.CommandLeSetScanEnable},
+			[]checkfn{
+				func(encoded []byte, t *testing.T) {
+					if len(encoded) != paramStartOffset+7 {
+						t.Errorf("Invalid length for set scan parameters")
+					}
+					if encoded[paramStartOffset] != 0x01 {
+						t.Errorf("Expected active scanning")
+					}
+				},
+				func(encoded []byte, t *testing.T) {
+					if len(encoded) != paramStartOffset+2 {
+						t.Errorf("Invalid length for scan enable")
+					}
+					if encoded[paramStartOffset] != 0x01 {
+						t.Errorf("Scan not enabled")
+					}
+				},
+			},
+			[]hci.ErrorCode{hci.StatusSuccess, hci.StatusSuccess},
+			false,
+		},
+		{
+			"Start Scanning Fail",
+			func(h *Host, ch chan error) {
+				_, err := h.StartScanning(false, nil)
+				ch <- err
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanParameters},
+			[]checkfn{
+				func(encoded []byte, t *testing.T) {
+
+				},
+			},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Start Scanning 2nd message fail",
+			func(h *Host, ch chan error) {
+				_, err := h.StartScanning(false, nil)
+				ch <- err
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanParameters, hci.CommandLeSetScanEnable},
+			[]checkfn{
+				func(encoded []byte, t *testing.T) {
+
+				},
+				func(encoded []byte, t *testing.T) {
+
+				},
+			},
+			[]hci.ErrorCode{hci.StatusSuccess, hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Stop scanning",
+			func(h *Host, ch chan error) {
+				ch <- h.StopScanning()
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanEnable},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+2 {
+					t.Errorf("invalid length for parameters")
+				}
+				if bytes.Compare(encoded[paramStartOffset:], []byte{0x00, 0x00}) != 0 {
+					t.Errorf("Unexpected parameters")
+				}
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Stop scanning fail",
+			func(h *Host, ch chan error) {
+				ch <- h.StopScanning()
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanEnable},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Set Advertising Params",
+			func(h *Host, ch chan error) {
+				p := hci.DefaultAdvParameters()
+				ch <- h.SetAdvertisingParams(p)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvParameters},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+15 {
+					t.Errorf("Invalid length for advertising parameters")
+				}
+				expected := make([]byte, 15)
+				binary.LittleEndian.PutUint16(expected[0:], 0x0800)
+				binary.LittleEndian.PutUint16(expected[2:], 0x0800)
+				expected[4] = byte(hci.AdvNonconnInd)
+				// own address type, peer address type and peer address
+				// should be 0x00 by default
+				expected[13] = 0x07 // channel map
+				// policy should be 0x00
+				if bytes.Compare(expected, encoded[paramStartOffset:]) != 0 {
+					t.Errorf("Unexpected parameters for command")
+				}
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Set Advertising Params Fail",
+			func(h *Host, ch chan error) {
+				p := hci.DefaultAdvParameters()
+				ch <- h.SetAdvertisingParams(p)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvParameters},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Set Advertising Data",
+			func(h *Host, ch chan error) {
+				s := []*hci.AdStructure{
+					&hci.AdStructure{
+						Typ:  hci.AdCompleteLocalName,
+						Data: []byte{0x20, 0x00},
+					},
+					&hci.AdStructure{
+						Typ:  hci.AdAppearance,
+						Data: []byte{0x01, 0x02},
+					},
+				}
+				ch <- h.SetAdvertisingData(s)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvData},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+32 {
+					t.Errorf("Expected command parameter length to be 32 bytes, was %d", len(encoded))
+				}
+				if encoded[paramStartOffset] != 8 {
+					t.Errorf("Unexpected advertising data length, was %d", encoded[0])
+				}
+				expected := make([]byte, 31)
+				copy(expected[0:8], []byte{0x03, 0x09, 0x20, 0x00, 0x03, 0x19, 0x01, 0x02})
+				if bytes.Compare(expected, encoded[paramStartOffset+1:]) != 0 {
+					t.Errorf("invalid parameter contents not expected")
+				}
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Set Scan response",
+			func(h *Host, ch chan error) {
+				s := []*hci.AdStructure{
+					&hci.AdStructure{
+						Typ:  hci.AdCompleteLocalName,
+						Data: []byte{0x20, 0x00},
+					},
+					&hci.AdStructure{
+						Typ:  hci.AdAppearance,
+						Data: []byte{0x01, 0x02},
+					},
+				}
+				ch <- h.SetScanResponse(s)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanResponse},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+32 {
+					t.Errorf("Expected command parameter length to be 32 bytes, was %d", len(encoded))
+				}
+				if encoded[paramStartOffset] != 8 {
+					t.Errorf("Unexpected advertising data length, was %d", encoded[0])
+				}
+				expected := make([]byte, 31)
+				copy(expected[0:8], []byte{0x03, 0x09, 0x20, 0x00, 0x03, 0x19, 0x01, 0x02})
+				if bytes.Compare(expected, encoded[paramStartOffset+1:]) != 0 {
+					t.Errorf("invalid parameter contents not expected")
+				}
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Set Advertising Data too big",
+			func(h *Host, ch chan error) {
+				s := []*hci.AdStructure{
+					&hci.AdStructure{
+						Typ: hci.AdCompleteLocalName,
+						Data: []byte{0x20, 0x00, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a,
+							0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a},
+					},
+					&hci.AdStructure{
+						Typ:  hci.AdAppearance,
+						Data: []byte{0x01, 0x02, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a},
+					},
+				}
+				ch <- h.SetAdvertisingData(s)
+			},
+			[]hci.CommandOpCode{},
+			[]checkfn{nil},
+			[]hci.ErrorCode{},
+			true,
+		},
+		{
+			"Set Advertising Data Fail",
+			func(h *Host, ch chan error) {
+				s := []*hci.AdStructure{
+					&hci.AdStructure{
+						Typ:  hci.AdCompleteLocalName,
+						Data: []byte{0x20, 0x00},
+					},
+					&hci.AdStructure{
+						Typ:  hci.AdAppearance,
+						Data: []byte{0x01, 0x02},
+					},
+				}
+				ch <- h.SetAdvertisingData(s)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetAdvData},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
+		{
+			"Set Scan response fail",
+			func(h *Host, ch chan error) {
+				s := []*hci.AdStructure{
+					&hci.AdStructure{
+						Typ:  hci.AdCompleteLocalName,
+						Data: []byte{0x20, 0x00},
+					},
+					&hci.AdStructure{
+						Typ:  hci.AdAppearance,
+						Data: []byte{0x01, 0x02},
+					},
+				}
+				ch <- h.SetScanResponse(s)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetScanResponse},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusInvalidParams},
+			true,
+		},
 	}
-	err := <-ch
-	if err != nil {
-		t.Errorf("Unexpected error in initialization")
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			h := New(nil)
+			ch := make(chan error)
+			go test.doCommand(h, ch)
+
+			for i, op := range test.expectedOps {
+				cmd := <-h.cmd
+				if cmd.cmd.OpCode != op {
+					t.Errorf("Unexpected opcode for command %d, %v", i, cmd.cmd.OpCode)
+				}
+				if test.check[i] != nil {
+					enc := cmd.cmd.Encode()
+					test.check[i](enc, t)
+				}
+				cmd.complete(mkCommandCompleteEvent(test.statuses[i], op, 1, t))
+			}
+			err := <-ch
+			if test.expectErr && err == nil {
+				t.Errorf("Expected error, dit not get")
+			} else if !test.expectErr && err != nil {
+				t.Errorf("Unexpected error %v", err)
+			}
+		})
 	}
-}
 
-func TestInitFail(t *testing.T) {
-
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		err := h.initializeController()
-		ch <- err
-	}()
-
-	// make sure we signal error and stop when command fails
-	cmd := <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
-	err := <-ch
-	if err == nil {
-		t.Errorf("Expected initialization to fail")
-	}
-}
-
-func TestStartScanHappy(t *testing.T) {
-
-	scanCommands := []hci.CommandOpCode{hci.CommandLeSetScanParameters, hci.CommandLeSetScanEnable}
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		_, err := h.StartScanning(false, nil)
-		ch <- err
-	}()
-
-	for i := 0; i < len(scanCommands); i++ {
-		cmd := <-h.cmd
-		if cmd.cmd.OpCode != scanCommands[i] {
-			t.Errorf("Expected command %s, got %s", scanCommands[i].String(), cmd.cmd.OpCode.String())
-		}
-		cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, scanCommands[i], 1, t))
-	}
-	err := <-ch
-	if err != nil {
-		t.Errorf("Unexpected error while starting scan")
-	}
-}
-
-func TestStartScanFail(t *testing.T) {
-
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		_, err := h.StartScanning(false, nil)
-		ch <- err
-	}()
-
-	// make sure we signal error and stop when command fails
-	cmd := <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
-	err := <-ch
-	if err == nil {
-		t.Errorf("Expected start scan to fail")
-	}
-}
-
-func TestStartScan2ndFail(t *testing.T) {
-
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		_, err := h.StartScanning(false, nil)
-		ch <- err
-	}()
-
-	// make sure we signal error and stop when command fails
-	cmd := <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, cmd.cmd.OpCode, 1, t))
-	cmd = <-h.cmd
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
-	err := <-ch
-	if err == nil {
-		t.Errorf("Expected start scan to fail")
-	}
-}
-
-func TestStopScanning(t *testing.T) {
-
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		err := h.StopScanning()
-		ch <- err
-	}()
-
-	// make sure we signal error and stop when command fails
-	cmd := <-h.cmd
-	if cmd.cmd.OpCode != hci.CommandLeSetScanEnable {
-		t.Errorf("Unexpected command")
-	}
-	cmd.complete(mkCommandCompleteEvent(hci.StatusSuccess, cmd.cmd.OpCode, 1, t))
-	err := <-ch
-	if err != nil {
-		t.Errorf("Unexpected error while stopping scan")
-	}
-}
-
-func TestStopScanningFail(t *testing.T) {
-
-	h := New(nil)
-	ch := make(chan error)
-	go func() {
-		err := h.StopScanning()
-		ch <- err
-	}()
-
-	// make sure we signal error and stop when command fails
-	cmd := <-h.cmd
-	if cmd.cmd.OpCode != hci.CommandLeSetScanEnable {
-		t.Errorf("Unexpected command")
-	}
-	cmd.complete(mkCommandCompleteEvent(hci.StatusInvalidParams, cmd.cmd.OpCode, 1, t))
-	err := <-ch
-	if err == nil {
-		t.Errorf("Expected stopping scanning to fail")
-	}
 }
