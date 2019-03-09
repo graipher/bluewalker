@@ -310,6 +310,85 @@ func TestEventHandlerCC(t *testing.T) {
 		t.Errorf("Received unexpected Command Complete event")
 	}
 }
+func TestEventHandlerWithInvalidEvents(t *testing.T) {
+
+	h := New(nil)
+	invalid := make([]byte, 6)
+	invalid[0] = byte(hci.EventCodeCommandComplete)
+	invalid[1] = 8 // length .. invalid
+	invalid[2] = 1 // num HCI packets
+	binary.LittleEndian.PutUint16(invalid[3:], uint16(hci.CommandReset))
+	invalid[5] = byte(hci.StatusSuccess)
+
+	// invald LE Meta event
+	invalid2 := make([]byte, 2)
+	invalid2[0] = byte(hci.EventCodeLeMeta)
+	invalid2[1] = 0
+
+	invalid3 := make([]byte, 2)
+	invalid3[0] = 0xff // invalid op code
+	invalid3[1] = 0
+
+	buf := make([]byte, 6)
+	buf[0] = byte(hci.EventCodeCommandComplete)
+	buf[1] = 4 // length
+	buf[2] = 1 // num HCI packets
+	binary.LittleEndian.PutUint16(buf[3:], uint16(hci.CommandReset))
+	buf[5] = byte(hci.StatusSuccess)
+
+	go h.eventHandler()
+	h.evt <- invalid
+	h.evt <- invalid2
+	h.evt <- invalid3
+	h.evt <- buf
+	cc := <-h.cc
+	close(h.evt)
+	if cc.GetCommandOpcode() != hci.CommandReset || cc.GetStatusParameter() != hci.StatusSuccess {
+		t.Errorf("Received unexpected Command Complete event")
+	}
+}
+func TestEventHandlerWithInvalidCC(t *testing.T) {
+
+	h := New(nil)
+	invalid := make([]byte, 6)
+	invalid[0] = byte(hci.EventCodeCommandComplete)
+	invalid[1] = 2 // length
+	binary.LittleEndian.PutUint16(invalid[2:], uint16(hci.CommandReset))
+
+	buf := make([]byte, 6)
+	buf[0] = byte(hci.EventCodeCommandComplete)
+	buf[1] = 4 // length
+	buf[2] = 1 // num HCI packets
+	binary.LittleEndian.PutUint16(buf[3:], uint16(hci.CommandReset))
+	buf[5] = byte(hci.StatusSuccess)
+
+	go h.eventHandler()
+	h.evt <- invalid
+	h.evt <- buf
+	cc := <-h.cc
+	close(h.evt)
+	if cc.GetCommandOpcode() != hci.CommandReset || cc.GetStatusParameter() != hci.StatusSuccess {
+		t.Errorf("Received unexpected Command Complete event")
+	}
+}
+
+func TestEventHandlerMetaInvalidAd(t *testing.T) {
+
+	h := New(nil)
+	buf, _ := hex.DecodeString("3e1402010000010203040506080309410003084100ff")
+	invalid, _ := hex.DecodeString("3e1302010000010203040506080309410003084100")
+
+	go h.eventHandler()
+	h.evt <- invalid
+	h.evt <- buf
+	ad := <-h.ad
+	close(h.evt)
+	bdaddr := hci.ToBtAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
+	if ad.Address != bdaddr {
+		// the Advertising report parsing is tested elsewhere
+		t.Errorf("Unexpected address in edvertising report")
+	}
+}
 
 func TestEventHandlerMeta(t *testing.T) {
 
