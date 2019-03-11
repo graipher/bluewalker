@@ -1,14 +1,25 @@
 # Bluewalker
 
-Bluewalker is a proof-of-concept Bluetooth LE scanner which uses
+Bluewalker is a proof-of-concept Bluetooth LE scanner and advertiser which uses
 _HCI user channel_ raw HCI sockets available on Linux to scan for
-Bluetooth LE devices. User channel sockets allow raw access to the Bluetooth
+Bluetooth LE devices or to start advertising with user-specified data.
+User channel sockets allow raw access to the Bluetooth
 controller and bypasses the Linux Bluetooth stack. This allows Bluewalker
 access to all Bluetooth LE Advertisement Data sent by nearby Bluetooth LE
 devices.
 
 [![pipeline status](https://gitlab.com/jtaimisto/bluewalker/badges/master/pipeline.svg)](https://gitlab.com/jtaimisto/bluewalker/commits/master)
 [![coverage report](https://gitlab.com/jtaimisto/bluewalker/badges/master/coverage.svg)](https://gitlab.com/jtaimisto/bluewalker/commits/master)
+
+Bluewalker can be used in four different modes:
+
+ * In [**Collector**](#Collector--mode) mode it listens for advertising packets for given duration
+ and prints summary of the received advertisement packets from different devices.
+ * In [**Observer**](#Observer--mode) mode it prints information about received advertisement packets
+ as they are received
+ * In [**Broadcaster**](#Broadcaster-mode---sending-advertising-packets) mode bluewalker can be used to send advertisement packets
+ * [**Ruuvi**](#Scanning-for-RuuviTags) mode is special mode for listening and printing information from
+ Ruuvi tags.
 
 ## Installing
 
@@ -23,9 +34,13 @@ This will install the binary to ~/bin by default.
 ## Usage
 
 ```
-Usage of bluewalker:
+Usage of ./bluewalker:
   -active
         Active scanning
+  -adv-data string
+        Advertising data to send on broadcast mode (Format: "<type>,<data>;<type>,<data>", all values hexadecimal)
+  -broadcast
+        Send advertising data instead of scanning for it
   -debug
         Enable debug messages
   -device string
@@ -46,6 +61,8 @@ Usage of bluewalker:
         Do scanning in observer mode (display advertising packets as they are received)
   -ruuvi
         Scan and display information about found Ruuvi tags
+  -scan-resp string
+        Scan response data to send on broadcast mode (Format: "<type>,<data>;<type>,<data>", all values hexadecimal)
   -unix string
         Unix socket path where to write results
   -version
@@ -163,10 +180,39 @@ Ruuvi device dc:15:32:fd:71:1f,random (RSSI:-61 dBm)
         Acceleration X: 0.01G, Y: -0.02G, Z: 1.00G
 ```
 
+### Broadcaster mode - sending advertising packets
+
+Bluewalker can also send advertising packets instead of listening for them.
+Use `-broadcast` command line flag to start bluewalker in _broadcaster_ mode
+and use `-adv-data` (and, optionally `-scan-resp` to set Scan Response) option
+to set the advertising data.
+
+The advertising data, when given with `-adv-data` (same applies also for
+Scan Response data given with `-scan-resp`), needs to be given as one or
+more _Advertising Structures_ specifed as one byte `type` field followed by
+comma (`,`) and `data` field containing one or more byets (both values should
+be given as hexadecimal). Advertising structure definitions should be separated with
+semicolon (`;`).
+
+The duration as seconds to advertise can be given with `-duration` flag, with
+`-1` specifying that advertising should continue until program is terminated
+with `<ctrl> + c` keypress.
+
+For example, to advertise for 30 seconds with AD Flags set to value `0x06`
+(Le General Discoverable, BR/EDR not supported) and Complete Local Name set
+to "`Bluewalker`":
+```
+$ sudo ./bluewalker -device hci0 -broadcast -adv-data "0x01,0x06;0x09,0x426c756577616c6b657200" -duration30
+Setting advertising data:
+        Flags : 0x06
+        Complete local name : 0x426c756577616c6b657200
+Advertising....Done
+```
+
 ## JSON output
 
 If `-json` command line option is given, bluewalker will produce JSON encoded
-output. This applies both to _ruuvi_ and normal mode.
+output. This applies to _ruuvi_, _observer_ and _collector_ mode.
 
 ### Writing JSON output to UNIX socket
 
