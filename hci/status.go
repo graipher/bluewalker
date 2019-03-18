@@ -8,14 +8,17 @@ type ErrorCode byte
 
 //Defined Error codes
 const (
-	StatusSuccess       ErrorCode = 0x00
-	StatusInvalidParams ErrorCode = 0x12
+	StatusSuccess           ErrorCode = 0x00
+	StatusCommandDisallowed ErrorCode = 0x0c
+	StatusInvalidParams     ErrorCode = 0x12
 )
 
 func (e ErrorCode) String() string {
 	switch e {
 	case StatusSuccess:
 		return "Success"
+	case StatusCommandDisallowed:
+		return "Command Disallowed"
 	case StatusInvalidParams:
 		return "Invalid command parameters"
 	default:
