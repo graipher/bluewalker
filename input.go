@@ -3,12 +3,40 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"strings"
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
+
+func parseAddress(addr string) (hci.BtAddress, error) {
+	atype := hci.LePublicAddress
+	if strings.Contains(addr, ",") {
+		parts := strings.Split(addr, ",")
+		if len(parts) != 2 {
+			return hci.BtAddress{}, fmt.Errorf("Invalid address specification %q", addr)
+		}
+		parts[1] = strings.TrimSpace(parts[1])
+		switch parts[1] {
+		case "public":
+			atype = hci.LePublicAddress
+		case "private":
+			fallthrough
+		case "random":
+			atype = hci.LeRandomAddress
+		default:
+			return hci.BtAddress{}, fmt.Errorf("Invalid address type %q", parts[1])
+		}
+		addr = parts[0]
+	}
+	addr = strings.TrimSpace(addr)
+	baddr, err := hci.BtAddressFromString(addr)
+	if err != nil {
+		return hci.BtAddress{}, err
+	}
+	baddr.Atype = atype
+	return baddr, nil
+}
 
 //parseAddressFilters parses one or more address filters from given
 //input from command line options
@@ -17,32 +45,10 @@ func parseAddressFilters(addresses string) (filter.AdFilter, error) {
 	addrs := strings.Split(addresses, ";")
 	parsed := make([]filter.AdFilter, len(addrs))
 	for i, addr := range addrs {
-		atype := hci.LePublicAddress
-		if strings.Contains(addr, ",") {
-			parts := strings.Split(addr, ",")
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("Invalid address specification %q", addresses)
-			}
-			parts[1] = strings.TrimSpace(parts[1])
-			switch parts[1] {
-			case "public":
-				atype = hci.LePublicAddress
-			case "private":
-				fallthrough
-			case "random":
-				atype = hci.LeRandomAddress
-			default:
-				return nil, fmt.Errorf("Invalid address type %q", parts[1])
-			}
-			addr = parts[0]
-		}
-		addr = strings.TrimSpace(addr)
-		baddr, err := hci.BtAddressFromString(addr)
+		baddr, err := parseAddress(addr)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid filter (%v)", err)
+			return nil, err
 		}
-		baddr.Atype = atype
-		log.Printf("Parsed address %s", baddr)
 		parsed[i] = filter.ByAddress(baddr)
 	}
 	return filter.Any(parsed), nil
