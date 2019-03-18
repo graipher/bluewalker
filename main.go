@@ -46,6 +46,7 @@ type settings struct {
 	broadcaster  bool
 	advData      string
 	scanResp     string
+	randomAddr   string
 }
 
 type output struct {
@@ -158,6 +159,7 @@ func init() {
 	flag.BoolVar(&cmdline.broadcaster, "broadcast", false, "Send advertising data instead of scanning for it")
 	flag.StringVar(&cmdline.advData, "adv-data", "", "Advertising data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
 	flag.StringVar(&cmdline.scanResp, "scan-resp", "", "Scan response data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
+	flag.StringVar(&cmdline.randomAddr, "random-addr", "", "Random LE Address to set")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 }
 
@@ -456,6 +458,19 @@ func main() {
 			errorCritical(nil, "Advertising or scan response data can be set only on broadcaster mode")
 		}
 	}
+	var rAddr hci.BtAddress
+	if cmdline.randomAddr != "" {
+		addr, err := parseAddress(cmdline.randomAddr)
+		if err != nil {
+			errorCritical(nil, fmt.Sprintf("Could not parse random address (%v)", err))
+		}
+		if addr.Atype != hci.LeRandomAddress {
+			// force the address type to be random, as we are setting the
+			// randome address
+			addr.Atype = hci.LeRandomAddress
+		}
+		rAddr = addr
+	}
 
 	if cmdline.duration == 0 || cmdline.duration < -1 {
 		errorCritical(nil, fmt.Sprintf("Invalid duration %d", cmdline.duration))
@@ -520,6 +535,12 @@ func main() {
 		errorCritical(host, fmt.Sprintf("Unable to initialize host: %v", err))
 	}
 
+	if cmdline.randomAddr != "" {
+		if err = host.SetRandomAddress(rAddr); err != nil {
+			errorCritical(host, fmt.Sprintf("%v", err))
+		}
+	}
+
 	var wg sync.WaitGroup
 	if cmdline.broadcaster {
 		params := hci.DefaultAdvParameters()
@@ -527,6 +548,10 @@ func main() {
 			// scan response will be set also, set advertising type to
 			// scannable
 			params.Type = hci.AdvScanInd
+		}
+		if cmdline.randomAddr != "" {
+			// random address has been set, use that to advertise
+			params.OwnAddrType = hci.AdvAddressRandom
 		}
 		if err := host.SetAdvertisingParams(params); err != nil {
 			errorCritical(host, fmt.Sprintf("Unable to set advertising parameters: %v", err))
