@@ -13,12 +13,12 @@ devices.
 
 Bluewalker can be used in four different modes:
 
- * In [**Collector**](#Collector--mode) mode it listens for advertising packets for given duration
+ * In [**Collector**](#collector-mode) mode it listens for advertising packets for given duration
  and prints summary of the received advertisement packets from different devices.
- * In [**Observer**](#Observer--mode) mode it prints information about received advertisement packets
+ * In [**Observer**](#observer-mode) mode it prints information about received advertisement packets
  as they are received
- * In [**Broadcaster**](#Broadcaster-mode---sending-advertising-packets) mode bluewalker can be used to send advertisement packets
- * [**Ruuvi**](#Scanning-for-RuuviTags) mode is special mode for listening and printing information from
+ * In [**Broadcaster**](#broadcaster-mode-sending-advertising-packets) mode bluewalker can be used to send advertisement packets
+ * [**Ruuvi**](#scanning-for-ruuvitag) mode is special mode for listening and printing information from
  Ruuvi tags.
 
 ## Installing
