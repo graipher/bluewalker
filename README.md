@@ -59,6 +59,8 @@ Usage of ./bluewalker:
         Output data as json
   -observer
         Do scanning in observer mode (display advertising packets as they are received)
+  -random-addr string
+        Random LE Address to set
   -ruuvi
         Scan and display information about found Ruuvi tags
   -scan-resp string
@@ -186,6 +188,9 @@ Bluewalker can also send advertising packets instead of listening for them.
 Use `-broadcast` command line flag to start bluewalker in _broadcaster_ mode
 and use `-adv-data` (and, optionally `-scan-resp` to set Scan Response) option
 to set the advertising data.
+
+To send advertisements using _random address_, use `-random-addr` -option to set
+random address to use.
 
 The advertising data, when given with `-adv-data` (same applies also for
 Scan Response data given with `-scan-resp`), needs to be given as one or
