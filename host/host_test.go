@@ -811,6 +811,53 @@ func TestCommand(t *testing.T) {
 			[]hci.ErrorCode{hci.StatusInvalidParams},
 			true,
 		},
+		{
+			"Set Random address",
+			func(h *Host, ch chan error) {
+				ba, _ := hci.BtAddressFromString("11:22:33:44:55:66")
+				ba.Atype = hci.LeRandomAddress
+
+				ch <- h.SetRandomAddress(ba)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetRandomAddress},
+			[]checkfn{func(encoded []byte, t *testing.T) {
+				if len(encoded) != paramStartOffset+6 {
+					t.Errorf("Invalid length for parameters")
+				}
+				if bytes.Compare(encoded[paramStartOffset:],
+					[]byte{0x66, 0x55, 0x44, 0x33, 0x22, 0x11}) != 0 {
+					t.Errorf("Unexpected payload for command")
+				}
+			}},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Set Random address fail",
+			func(h *Host, ch chan error) {
+				ba, _ := hci.BtAddressFromString("11:22:33:44:55:66")
+				ba.Atype = hci.LeRandomAddress
+
+				ch <- h.SetRandomAddress(ba)
+			},
+			[]hci.CommandOpCode{hci.CommandLeSetRandomAddress},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusCommandDisallowed},
+			true,
+		},
+		{
+			"Set Random address, invalid address type",
+			func(h *Host, ch chan error) {
+				ba, _ := hci.BtAddressFromString("11:22:33:44:55:66")
+				ba.Atype = hci.LePublicAddress
+
+				ch <- h.SetRandomAddress(ba)
+			},
+			[]hci.CommandOpCode{},
+			[]checkfn{},
+			[]hci.ErrorCode{},
+			true,
+		},
 	}
 
 	for _, test := range tests {

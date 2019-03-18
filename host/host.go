@@ -457,6 +457,22 @@ func (h *Host) StopAdvertising() error {
 	return nil
 }
 
+//SetRandomAddress sets LE Random Device Address to the Controller
+func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
+	if addr.Atype != hci.LeRandomAddress {
+		return fmt.Errorf("Invalid address type %s, expected %s",
+			addr.Atype.String(), hci.LeRandomAddress.String())
+	}
+	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetRandomAddress}
+	params := make([]byte, 6)
+	addr.Put(params)
+	cmd.Parameters(params)
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("Unable to set random address: %s", err.Error())
+	}
+	return nil
+}
+
 // Deinit will deinitialize Host
 func (h *Host) Deinit() {
 	log.Printf("Deinitializing host")
