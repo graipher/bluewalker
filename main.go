@@ -405,9 +405,6 @@ func main() {
 	}
 	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
-		if cmdline.ruuvi {
-			errorCritical(nil, "Address filters not supported on Ruuvi tag mode")
-		}
 		if filt, err := parseAddressFilters(cmdline.addrFilter); err != nil {
 			errorCritical(nil, fmt.Sprintf("%v", err))
 		} else {
