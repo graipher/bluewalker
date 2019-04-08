@@ -278,9 +278,20 @@ func ruuviOuputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi i
 func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
 	bld := new(strings.Builder)
 
-	fmt.Fprintf(bld, "Ruuvi device %s (RSSI:%d dBm)\n", formatAddress(address), rssi)
+	v5data := data.Seqno != ruuvi.SeqnoNA
+
+	fmt.Fprintf(bld, "Ruuvi device %s, Data format:", formatAddress(address))
+	if v5data {
+		fmt.Fprintf(bld, "v5 ")
+	} else {
+		fmt.Fprintf(bld, "v3 ")
+	}
+	fmt.Fprintf(bld, "(RSSI %d dBm)\n", rssi)
 	fmt.Fprintf(bld, "\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", data.Humidity, data.Temperature, data.Pressure, data.Voltage)
 	fmt.Fprintf(bld, "\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ)
+	if v5data {
+		fmt.Fprintf(bld, "\tTxPower: %d dBm, Moves: %d, Seqno: %d\n", data.TxPower, data.MoveCount, data.Seqno)
+	}
 	out.write(bld.String())
 }
 
