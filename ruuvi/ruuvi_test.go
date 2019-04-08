@@ -23,21 +23,36 @@ var unmarshallTests = []unmarshallTest{
 		nil,
 	},
 	{
-		"Invalid length",
+		"Invalid length v3",
 		"990403000000000000000000000000",
+		nil,
+	},
+	{
+		"Invalid Length v5",
+		"990405000000000000000000000000",
 		nil,
 	},
 	{
 		"Zero",
 		"99040300000000000000000000000000",
 		&Data{Humidity: 0, Temperature: 0, Pressure: 50000,
-			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0, Voltage: 0},
+			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0, Voltage: 0,
+			TxPower: 31, MoveCount: 255, Seqno: 0xffff},
+	},
+	{
+		"Zero - v5",
+		"9904050000000000000000000000000000000000000000000000",
+		&Data{Temperature: 0, Humidity: 0, Pressure: 50000,
+			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0,
+			Voltage: 1600, TxPower: -40, MoveCount: 0, Seqno: 0,
+		},
 	},
 	{
 		"Zero - No Company identifier",
 		"0300000000000000000000000000",
 		&Data{Humidity: 0, Temperature: 0, Pressure: 50000,
-			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0, Voltage: 0},
+			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0, Voltage: 0,
+			TxPower: 31, MoveCount: 255, Seqno: 0xffff},
 	},
 	{
 		"vector1",
@@ -45,7 +60,7 @@ var unmarshallTests = []unmarshallTest{
 		&Data{
 			Humidity: 64, Temperature: -1.69, Pressure: 101325,
 			AccelerationX: -1, AccelerationY: 1, AccelerationZ: -1,
-			Voltage: 3600,
+			Voltage: 3600, TxPower: 31, MoveCount: 255, Seqno: 0xffff,
 		},
 	},
 	{
@@ -54,7 +69,25 @@ var unmarshallTests = []unmarshallTest{
 		&Data{
 			Humidity: 64, Temperature: 1.69, Pressure: 101325,
 			AccelerationX: -1, AccelerationY: 1, AccelerationZ: -1.001,
-			Voltage: 3600,
+			Voltage: 3600, TxPower: 31, MoveCount: 255, Seqno: 0xffff,
+		},
+	},
+	{
+		"vector 1 - v5",
+		"99040501c4271ac87dfc18fc18fc18af166403e8010203040506",
+		&Data{
+			Temperature: 2.26, Humidity: 25.025, Pressure: 101325,
+			AccelerationX: -1, AccelerationY: -1, AccelerationZ: -1,
+			Voltage: 3000, TxPower: 4, MoveCount: 100, Seqno: 1000,
+		},
+	},
+	{
+		"Vector 2 - v5",
+		"990405fe3e9c40fffe03e803e803e8af166403e8010203040506",
+		&Data{
+			Temperature: -2.25, Humidity: 100, Pressure: 115534,
+			AccelerationX: 1, AccelerationY: 1, AccelerationZ: 1,
+			Voltage: 3000, TxPower: 4, MoveCount: 100, Seqno: 1000,
 		},
 	},
 }
