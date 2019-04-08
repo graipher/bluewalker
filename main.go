@@ -300,7 +300,7 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 	for sr := range reportChan {
 		for _, ads := range sr.Data {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
-				ruuviData, err := ruuvi.Unmarshall(ads.Data)
+				ruuviData, err := ruuvi.Decode(ads.Data)
 				if err != nil {
 					log.Printf("Unable to parse ruuvi data: %v", err)
 					continue
