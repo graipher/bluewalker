@@ -79,7 +79,7 @@ can be started using `sudo bluewalker -device <hcidevice>`. Bluewalker needs
 to be run as root to be able to access the raw HCI device.
 
 ### Collector -mode
-By default Bluewalker listens for avaibale Bluetooth LE advertisements for
+By default Bluewalker listens for available Bluetooth LE advertisements for
 5 seconds and then prints information about found devices and all different
 advertisement data it has received from each device. The number of seconds to
 scan can be changed with `-duration <seconds>` parameter. If duration is given
@@ -164,22 +164,26 @@ default [Sensor Tag Beacon firmware](https://lab.ruuvi.com/ruuvitag-fw/).
 To enable listening for RuuviTags, start bluewalker with `-ruuvi` parameter.
 
 Bluewalker is able to decode information when the RuuviTag is running in
-RAW mode and the information is encoded with version 3 of the data (see
+RAW mode and the information is encoded with version 3 or 5 of the data (see
 [here for RuuviTag data specifications](https://github.com/ruuvi/ruuvi-sensor-protocols))
 
 When run in *ruuvi* mode, bluewalker will display RuuviTag information whenever
 it receives data (no need to use `-observer` option):
 ```
 $ sudo ./bluewalker -device hci0 -ruuvi
-Ruuvi device f2:2e:df:eb:8e:99,random (RSSI:-61 dBm)
+Ruuvi device f2:2e:df:eb:8e:99,random (static), Data format:v3 (RSSI:-61 dBm)
         Humidity: 47.00% Temperature: 23.84C Pressure: 99774Pa Battery voltage: 2971mV
         Acceleration X: 0.06G, Y: -0.16G, Z: 1.00G
-Ruuvi device c8:c6:4b:bd:12:10,random (RSSI:-67 dBm)
+Ruuvi device c8:c6:4b:bd:12:10,random (static), Data format:v3 (RSSI:-67 dBm)
         Humidity: 60.00% Temperature: 20.02C Pressure: 99748Pa Battery voltage: 2863mV
         Acceleration X: 0.01G, Y: -0.01G, Z: 1.06G
-Ruuvi device dc:15:32:fd:71:1f,random (RSSI:-61 dBm)
+Ruuvi device dc:15:32:fd:71:1f,random (static), Data format:v3 (RSSI:-61 dBm)
         Humidity: 53.00% Temperature: 21.41C Pressure: 99711Pa Battery voltage: 3139mV
         Acceleration X: 0.01G, Y: -0.02G, Z: 1.00G
+Ruuvi device fc:d0:22:ad:85:7a,random (static), Data format:v5 (RSSI -29 dBm)
+        Humidity: 24.39% Temperature: 23.55C Pressure: 101483Pa Battery voltage: 3151mV
+        Acceleration X: -0.07G, Y: 0.03G, Z: 1.01G
+        TxPower: 4 dBm, Moves: 85, Seqno: 876
 ```
 
 ### Broadcaster mode - sending advertising packets
@@ -288,23 +292,29 @@ The format for device information structure is
 
 
 When scanning for ruuvi tags, the information about ruuvi tag is printed as
-JSON object every time data is received.
+JSON object every time data is received. Note that _txpower_, _movementCount_
+and _sequence_ are only available if Ruuvi tag is sending with data format 5.
+If data is received in format 3, these fields are set to "Not Available"
+values.
 ```
 {
-	"device": {
-		"address": "c8:c6:4b:bd:12:10",
-		"type": "LE Random"
-	},
-	"rssi": -69,
-	"sensors": {
-		"humidity": 49.5,
-		"temperature": 18.77,
-		"pressure": 99557,
-		"accelerationX": 0,
-		"accelerationY": -0.008,
-		"accelerationZ": 1.06,
-		"voltage": 2845
-	}
+        "device": {
+                "address": "fc:d0:22:ad:85:7a",
+                "type": "LE Random"
+        },
+        "rssi": -40,
+        "sensors": {
+                "humidity": 23.8375,
+                "temperature": 23.449999,
+                "pressure": 101494,
+                "accelerationX": -0.072,
+                "accelerationY": 0.024,
+                "accelerationZ": 1.012,
+                "voltage": 3085,
+                "txpower": 4,
+                "movementCount": 109,
+                "sequence": 1994
+        }
 }
 ```
 |JSON element|Value|
@@ -312,7 +322,7 @@ JSON object every time data is received.
 |device|Address of the Ruuvi tag|
 |device:address|Bluetooth address as string|
 |device:type| Bluetooth address type (`LE Public`, `LE Random`)|
-|rssi|RSSI value from the received advertising event|
+|rssi|RSSI value from the received advertising event (int)|
 |sensors|Values for all the ruuvi tag sensors|
 |sensors:humidity|Humidity value (float)|
 |sensors:temperature|Temperature in C (float)|
@@ -321,3 +331,6 @@ JSON object every time data is received.
 |sensors:accelerationY|Acceleration for Y axis in G (float)|
 |sensors:accelerationZ|Acceleration for Y axis in G (float)|
 |sensors:voltage|Battery voltage in mV (int)|
+|sensors:txpower|TX power level (int, 31 for "Not Available")|
+|sensors:movementCount|Movement counter value (int, 255 for "Not Available")|
+|sensors:sequence|Data sequence number (int, 65535 for "Not Available")|
