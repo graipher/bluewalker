@@ -25,7 +25,7 @@ import (
 
 const (
 	//BluewalkerVersion contains the current version string
-	BluewalkerVersion string = "0.2.0"
+	BluewalkerVersion string = "0.2.1-dev"
 )
 
 // Command line settings
@@ -47,6 +47,7 @@ type settings struct {
 	advData      string
 	scanResp     string
 	randomAddr   string
+	filePath     string
 }
 
 type output struct {
@@ -98,6 +99,17 @@ func outputForSocket(path string) (*output, error) {
 		return nil, err
 	}
 	return &output{wr: unixConn, cl: unixConn, humanReadable: false}, nil
+}
+
+func outputForFile(path string) (*output, error) {
+	if path == "-" {
+		return &output{wr: os.Stdout, humanReadable: false}, nil
+	}
+	fs, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+	return &output{wr: fs, cl: fs, humanReadable: false}, nil
 }
 
 func defaultOutput() *output {
@@ -161,6 +173,7 @@ func init() {
 	flag.StringVar(&cmdline.scanResp, "scan-resp", "", "Scan response data to send on broadcast mode (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
 	flag.StringVar(&cmdline.randomAddr, "random-addr", "", "Random LE Address to set")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
+	flag.StringVar(&cmdline.filePath, "output-file", "", "Write output to given file, ('-' to indicate stdout)")
 }
 
 func formatAddress(addr hci.BtAddress) string {
@@ -458,6 +471,9 @@ func main() {
 		if cmdline.socketPath != "" {
 			errorCritical(nil, "No unix socket support on broadcaster mode")
 		}
+		if cmdline.filePath != "" {
+			errorCritical(nil, "File output not available on broadcaster mode")
+		}
 		if cmdline.advData == "" {
 			errorCritical(nil, "No Advertising Data set")
 		}
@@ -486,6 +502,9 @@ func main() {
 
 	var out *output
 	if cmdline.socketPath != "" {
+		if cmdline.filePath != "" {
+			errorCritical(nil, "Socket and file output can not be defined at the same time")
+		}
 		if !cmdline.json {
 			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
 			cmdline.json = true
@@ -494,6 +513,13 @@ func main() {
 		out, err = outputForSocket(cmdline.socketPath)
 		if err != nil {
 			errorCritical(nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
+		}
+		defer out.Close()
+	} else if cmdline.filePath != "" {
+		var err error
+		out, err = outputForFile(cmdline.filePath)
+		if err != nil {
+			errorCritical(nil, fmt.Sprintf("Unable to open output file %s (%v)", cmdline.filePath, err))
 		}
 		defer out.Close()
 	} else {
