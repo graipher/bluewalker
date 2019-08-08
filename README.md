@@ -59,6 +59,8 @@ Usage of ./bluewalker:
         Output data as json
   -observer
         Do scanning in observer mode (display advertising packets as they are received)
+  -output-file string
+        Write output to given file, ('-' to indicate stdout)
   -random-addr string
         Random LE Address to set
   -ruuvi
@@ -223,20 +225,23 @@ Advertising....Done
 If `-json` command line option is given, bluewalker will produce JSON encoded
 output. This applies to _ruuvi_, _observer_ and _collector_ mode.
 
+When JSON data is written to UNIX socket (`-unix <path>`) or to a file
+(`-output-file <path>`), the data is written without any identation as a
+string terminated by newline (`\n`). Thus, when parsing JSON data from UNIX socket
+or a file when newline is encountered you should have received a well -formed
+JSON structure (this applies also to JSON printed to stdout if `-` was given
+as a path to `-output-file`).
+
+If neither `-unix` of `-output-file` command line options were given, data
+is written to stdout indented.
+
+
 ### Writing JSON output to UNIX socket
 
 If `-unix <path>` command line option is given, the Bluewalker will try to
 connect to UNIX socket in given path and writes the JSON output to this
 socket. Note that even if `-json` command line option is not given, specifying
 UNIX socket path forces JSON output.
-
-The JSON data structures are specified below, when data is written to UNIX
-socket, the data is written without any identation as a string terminated
-by newline (`\n`) character. Thus, when parsing JSON data from UNIX socket,
-when newline is encountered you should have received a well -formed JSON
-structure.
-
-When data is written to stdout, the JSON structures are printed indented.
 
 ### JSON definitions
 
