@@ -1,3 +1,9 @@
+v0.2.1 (2019-08-10)
+
+ * Add support for file output (-output-file command line option), which
+   allows to write, for example, JSON data into file in a format which is easy
+   to parse.
+
 v0.2.0 (2019-04-09)
 
 * Bluewalker can now read ruuvi tag data format 5 as well. The JSON output
