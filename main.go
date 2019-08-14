@@ -87,7 +87,7 @@ func (out *output) writeAsJSON(data interface{}) {
 		}
 	}
 	if err == nil {
-		out.wr.Write(jdata)
+		out.write(string(jdata))
 	} else {
 		log.Printf("WARN: unable to marshal %q as JSON: %v", data, err)
 	}
