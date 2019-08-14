@@ -327,7 +327,11 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 					log.Printf("Unable to parse ruuvi data: %v", err)
 					continue
 				}
-				outputf(ruuviData, sr.Address, sr.Rssi)
+				if err := outputf(ruuviData, sr.Address, sr.Rssi); err != nil {
+					errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
+					term <- 1
+					break
+				}
 			}
 		}
 	}
@@ -351,7 +355,11 @@ func observerLoop(reportChan chan *host.ScanReport, out *output, term chan int) 
 			Device:   sr.Address}
 
 		found.Types = []hci.AdvType{sr.Type}
-		outputf(found)
+		if err := outputf(found); err != nil {
+			errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
+			term <- 1
+			break
+		}
 	}
 }
 
@@ -397,13 +405,19 @@ func collectorLoop(reportChan chan *host.ScanReport, out *output, term chan int)
 			dev.LastSeen = time.Now()
 		}
 	}
+	// ignore error, we are about to close anyway
 	printCollectedInfo(collected, out)
+}
+
+// write error message to user
+func errorMessage(message string) {
+	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
 }
 
 //error_critical will print given error message and terminate the program
 // if host is non-nil, it will be deinitialized befor stoppping
 func errorCritical(host *host.Host, message string) {
-	fmt.Fprintf(os.Stderr, "ERROR: %s\n", message)
+	errorMessage(message)
 	if host != nil {
 		host.Deinit()
 	}
