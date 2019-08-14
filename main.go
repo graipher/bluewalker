@@ -653,20 +653,15 @@ func main() {
 		}()
 	}
 
-	if cmdline.duration == -1 {
-		select {
-		case <-termChan:
-		case s := <-sig:
-			log.Printf("Received signal %s, stopping ", s)
-		}
-	} else {
-		ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
-		select {
-		case <-ch:
-		case <-termChan:
-		case s := <-sig:
-			log.Printf("Received signal %s, stopping ", s)
-		}
+	var tick <-chan time.Time
+	if cmdline.duration != -1 {
+		tick = time.Tick(time.Duration(cmdline.duration) * time.Second)
+	}
+	select {
+	case <-tick:
+	case <-termChan:
+	case s := <-sig:
+		log.Printf("Received signal %s, stopping ", s)
 	}
 
 	if cmdline.broadcaster {
