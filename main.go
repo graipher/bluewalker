@@ -25,7 +25,7 @@ import (
 
 const (
 	//BluewalkerVersion contains the current version string
-	BluewalkerVersion string = "0.2.1"
+	BluewalkerVersion string = "0.2.2-dev"
 )
 
 // Command line settings
@@ -277,7 +277,7 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 	out.write(sb.String())
 }
 
-type loopFunc func(chan *host.ScanReport, *output)
+type loopFunc func(chan *host.ScanReport, *output, chan int)
 
 func ruuviOuputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
 
@@ -309,7 +309,7 @@ func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8
 }
 
 //listen for ruuvi tag advertisments and print out the decoded information
-func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
+func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 	for sr := range reportChan {
 		for _, ads := range sr.Data {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
@@ -328,7 +328,7 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output) {
 	}
 }
 
-func observerLoop(reportChan chan *host.ScanReport, out *output) {
+func observerLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 	for sr := range reportChan {
 		found := &foundDevice{Structures: sr.Data,
 			Rssi:     sr.Rssi,
@@ -346,7 +346,7 @@ func observerLoop(reportChan chan *host.ScanReport, out *output) {
 }
 
 //listen for incoming scan reports, collect data and print it once the channel closes
-func collectorLoop(reportChan chan *host.ScanReport, out *output) {
+func collectorLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 	collected := make(map[hci.BtAddress]*foundDevice)
 	for sr := range reportChan {
 		dev, found := collected[sr.Address]
@@ -527,6 +527,7 @@ func main() {
 	}
 
 	var loop loopFunc
+	termChan := make(chan int)
 	if cmdline.ruuvi {
 		filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
 		loop = ruuviLoop
@@ -623,24 +624,24 @@ func main() {
 
 		wg.Add(1)
 		go func() {
-			loop(reportChan, out)
+			loop(reportChan, out, termChan)
 			wg.Done()
 		}()
 	}
 
 	if cmdline.duration == -1 {
 		select {
+		case <-termChan:
 		case s := <-sig:
 			log.Printf("Received signal %s, stopping ", s)
-
 		}
 	} else {
 		ch := time.Tick(time.Duration(cmdline.duration) * time.Second)
 		select {
 		case <-ch:
+		case <-termChan:
 		case s := <-sig:
 			log.Printf("Received signal %s, stopping ", s)
-
 		}
 	}
 
