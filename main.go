@@ -56,8 +56,9 @@ type output struct {
 	humanReadable bool
 }
 
-func (out *output) write(data string) {
-	out.wr.Write([]byte(data))
+func (out *output) write(data string) error {
+	_, err := out.wr.Write([]byte(data))
+	return err
 }
 
 func (out *output) isHumanReadable() bool {
@@ -75,7 +76,7 @@ func (out *output) Close() {
 // as HumanReadble, the JSON is indented and printed so that it
 // is easy to read. If ouput is not HumanReadable, the json is
 // printed as a single -line where data is terminated by newline ('\n')
-func (out *output) writeAsJSON(data interface{}) {
+func (out *output) writeAsJSON(data interface{}) error {
 	var err error
 	var jdata []byte
 	if out.isHumanReadable() {
@@ -87,10 +88,9 @@ func (out *output) writeAsJSON(data interface{}) {
 		}
 	}
 	if err == nil {
-		out.write(string(jdata))
-	} else {
-		log.Printf("WARN: unable to marshal %q as JSON: %v", data, err)
+		return out.write(string(jdata))
 	}
+	return fmt.Errorf("Unable to marshal %q as JSON: %v", data, err)
 }
 
 func outputForSocket(path string) (*output, error) {
@@ -255,7 +255,7 @@ func decodeDeviceAddress(data []byte) string {
 }
 
 //print the collected information about found devices
-func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
+func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) error {
 
 	if cmdline.json {
 		size := len(infoMap)
@@ -265,8 +265,7 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 			devices[i] = val
 			i++
 		}
-		out.writeAsJSON(devices)
-		return
+		return out.writeAsJSON(devices)
 	}
 
 	sb := strings.Builder{}
@@ -274,21 +273,21 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) {
 	for _, val := range infoMap {
 		sb.WriteString(val.String())
 	}
-	out.write(sb.String())
+	return out.write(sb.String())
 }
 
 type loopFunc func(chan *host.ScanReport, *output, chan int)
 
-func ruuviOuputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
+func ruuviOutputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
 
-	out.writeAsJSON(struct {
+	return out.writeAsJSON(struct {
 		Device hci.BtAddress `json:"device"`
 		Rssi   int8          `json:"rssi"`
 		Values *ruuvi.Data   `json:"sensors"`
 	}{address, rssi, data})
 }
 
-func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) {
+func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
 	bld := new(strings.Builder)
 
 	v5data := data.Seqno != ruuvi.SeqnoNA
@@ -305,11 +304,21 @@ func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8
 	if v5data {
 		fmt.Fprintf(bld, "\tTxPower: %d dBm, Moves: %d, Seqno: %d\n", data.TxPower, data.MoveCount, data.Seqno)
 	}
-	out.write(bld.String())
+	return out.write(bld.String())
 }
 
 //listen for ruuvi tag advertisments and print out the decoded information
 func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
+	var outputf func(*ruuvi.Data, hci.BtAddress, int8) error
+	if cmdline.json {
+		outputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
+			return ruuviOutputJSON(out, data, addr, rssi)
+		}
+	} else {
+		outputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
+			return ruuviOutput(out, data, addr, rssi)
+		}
+	}
 	for sr := range reportChan {
 		for _, ads := range sr.Data {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
@@ -318,17 +327,23 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 					log.Printf("Unable to parse ruuvi data: %v", err)
 					continue
 				}
-				if cmdline.json {
-					ruuviOuputJSON(out, ruuviData, sr.Address, sr.Rssi)
-				} else {
-					ruuviOutput(out, ruuviData, sr.Address, sr.Rssi)
-				}
+				outputf(ruuviData, sr.Address, sr.Rssi)
 			}
 		}
 	}
 }
 
 func observerLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
+	var outputf func(*foundDevice) error
+	if cmdline.json {
+		outputf = func(found *foundDevice) error {
+			return out.writeAsJSON(found)
+		}
+	} else {
+		outputf = func(found *foundDevice) error {
+			return out.write(found.String())
+		}
+	}
 	for sr := range reportChan {
 		found := &foundDevice{Structures: sr.Data,
 			Rssi:     sr.Rssi,
@@ -336,12 +351,7 @@ func observerLoop(reportChan chan *host.ScanReport, out *output, term chan int) 
 			Device:   sr.Address}
 
 		found.Types = []hci.AdvType{sr.Type}
-
-		if cmdline.json {
-			out.writeAsJSON(found)
-		} else {
-			out.write(found.String())
-		}
+		outputf(found)
 	}
 }
 
