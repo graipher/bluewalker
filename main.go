@@ -158,7 +158,7 @@ var cmdline settings
 func init() {
 	flag.StringVar(&cmdline.device, "device", "", "HCI device to use")
 	flag.BoolVar(&cmdline.active, "active", false, "Active scanning")
-	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan")
+	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan, -1 to scan indefinitely")
 	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
