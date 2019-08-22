@@ -69,6 +69,17 @@ func parseByteArray(input string, length int) ([]byte, error) {
 	return bytes, nil
 }
 
+func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
+	bytes, err := parseByteArray(data, -1)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid partial addr (%v)", err)
+	}
+	if len(bytes) > 6 {
+		return nil, fmt.Errorf("Too long prefix %d bytes, max is 6", len(bytes))
+	}
+	return filter.ByPartialAddress(bytes), nil
+}
+
 //parseIrkFilter parses IRK filter from IRK given as command line parameter
 func parseIrkFilter(data string) (filter.AdFilter, error) {
 	bytes, err := parseByteArray(data, hci.IrkLength)

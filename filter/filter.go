@@ -27,6 +27,20 @@ func ByAddress(address hci.BtAddress) AdFilter {
 	return &addressFilter{addr: address}
 }
 
+type partAddrFilter struct {
+	part []byte
+}
+
+func (f *partAddrFilter) Filter(rep *hci.AdvertisingReport) bool {
+	return rep.Address.HasPrefix(f.part)
+}
+
+//ByPartialAddress returns filter which matches a partial address bytes
+//against bytes given in buffer.
+func ByPartialAddress(buf []byte) AdFilter {
+	return &partAddrFilter{part: buf}
+}
+
 type vendorFilter struct {
 	preamble []byte
 }

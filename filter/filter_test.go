@@ -32,6 +32,24 @@ func TestAddressFilter(t *testing.T) {
 	}
 }
 
+func TestPartialAddrFilter(t *testing.T) {
+	buf := make([]byte, 2)
+	buf[0] = 0x11
+	buf[1] = 0x22
+	filt := ByPartialAddress(buf)
+	rep := buildAdvertisingReport("11:22:33:44:55:66", nil)
+	if !filt.Filter(rep) {
+		t.Errorf(("Expected filter to match"))
+	}
+
+	buf[0] = 0x11
+	buf[1] = 0xaa
+	filt = ByPartialAddress(buf)
+	if filt.Filter(rep) {
+		t.Errorf(("Did not expect filter to match"))
+	}
+}
+
 func TestVendorData(t *testing.T) {
 
 	buf, _ := hex.DecodeString("0a0b0c")

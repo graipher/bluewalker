@@ -169,3 +169,46 @@ func TestPutSmall(t *testing.T) {
 		t.Errorf("Invalid data in Put() buffer")
 	}
 }
+
+func TestHasPrefix(t *testing.T) {
+	addr, _ := BtAddressFromString("aa:bb:cc:dd:ee:ff")
+	buf := make([]byte, 2)
+	buf[0] = 0xaa
+	buf[1] = 0xbb
+	if !addr.HasPrefix(buf) {
+		t.Errorf("Did not match prefix")
+	}
+	buf = make([]byte, 6)
+	buf[0] = 0xaa
+	buf[1] = 0xbb
+	buf[2] = 0xcc
+	buf[3] = 0xdd
+	buf[4] = 0xee
+	buf[5] = 0xff
+	if !addr.HasPrefix(buf) {
+		t.Errorf("Did not match full address as prefix")
+	}
+
+}
+
+func TestHasPrefixNot(t *testing.T) {
+	addr, _ := BtAddressFromString("aa:bb:cc:dd:ee:ff")
+	buf := make([]byte, 2)
+	buf[0] = 0xaa
+	buf[1] = 0xcc
+	if addr.HasPrefix(buf) {
+		t.Errorf("Matched invalid prefix")
+	}
+
+	buf = make([]byte, 7)
+	buf[0] = 0xaa
+	buf[1] = 0xbb
+	buf[2] = 0xcc
+	buf[3] = 0xdd
+	buf[4] = 0xee
+	buf[5] = 0xff
+	buf[6] = 0x00
+	if addr.HasPrefix(buf) {
+		t.Errorf("Matched against too long prefix")
+	}
+}
