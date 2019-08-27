@@ -70,10 +70,39 @@ func parseByteArray(input string, length int) ([]byte, error) {
 }
 
 func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
-	bytes, err := parseByteArray(data, -1)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid partial addr (%v)", err)
+
+	var bytes []byte
+	data = strings.TrimSpace(data)
+	if strings.HasSuffix(data, ":") {
+		// remove trailing ':' first
+		data = data[0 : len(data)-1]
 	}
+	if strings.Contains(data, ":") {
+		// Assuming the data is in BD_ADDR format
+		parts := strings.Split(data, ":")
+		if len(parts) > 6 {
+			return nil, fmt.Errorf("Invalid partial address filter %s", data)
+		}
+		bytes = make([]byte, len(parts))
+		for i := 0; i < len(parts); i++ {
+			bb, err := hex.DecodeString(parts[i])
+			if err != nil {
+				return nil, fmt.Errorf("invalid partial address filter %s", data)
+			}
+			if len(bb) != 1 {
+				return nil, fmt.Errorf("Invalid partial address filter %s", data)
+			}
+			bytes[i] = bb[0]
+		}
+	} else {
+		// assuming just byte array in hex
+		var err error
+		bytes, err = parseByteArray(data, -1)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid partial address filter %s (%v)", data, err)
+		}
+	}
+
 	if len(bytes) > 6 {
 		return nil, fmt.Errorf("Too long prefix %d bytes, max is 6", len(bytes))
 	}
