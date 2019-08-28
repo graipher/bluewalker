@@ -22,6 +22,20 @@ func (ba BtAddress) Put(buf []byte) {
 	copy(buf, ba.raw[0:])
 }
 
+//HasPrefix checks if address has given prefix.
+func (ba BtAddress) HasPrefix(buf []byte) bool {
+	if len(buf) > 6 {
+		// not a prefix
+		return false
+	}
+	for i := 0; i < len(buf); i++ {
+		if buf[i] != ba.raw[5-i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (ba BtAddress) String() string {
 	return fmt.Sprintf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", ba.raw[5], ba.raw[4], ba.raw[3], ba.raw[2], ba.raw[1], ba.raw[0])
 }

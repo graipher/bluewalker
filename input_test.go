@@ -113,6 +113,115 @@ func TestParseAddressFilter(t *testing.T) {
 	}
 }
 
+func TestParsePartialAddressFilter(t *testing.T) {
+	testdata := []struct {
+		name  string
+		input string
+		valid bool
+		match []hci.BtAddress
+	}{
+		{
+			"valid short",
+			"0xaa",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"valid, short, BD_ADDR",
+			"aa:",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"valid, longer, BD_ADDR",
+			"aa:bb",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"valid, longer, BD_ADDR, trailing :",
+			"aa:bb:cc:",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"valid longer",
+			"0xaabb",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"valid full",
+			"0xaabbccddeeff",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"valid, full, BD_ADDR",
+			"aa:bb:cc:dd:ee:ff",
+			true,
+			[]hci.BtAddress{toAddr("aa:bb:cc:dd:ee:ff", hci.LePublicAddress)},
+		},
+		{
+			"invalid, too long",
+			"0xaabbccddeeff11",
+			false,
+			[]hci.BtAddress{},
+		},
+		{
+			"invalid, too long, BD_ADDR",
+			"aa:bb:cc:dd:ee:ff:11",
+			false,
+			[]hci.BtAddress{},
+		},
+		{
+			"invalid chars",
+			"0xaabbccjjeeff",
+			false,
+			[]hci.BtAddress{},
+		},
+		{
+			"invalid chars, BD_ADDR",
+			"aa:bb:cc:jj:ee:ff",
+			false,
+			[]hci.BtAddress{},
+		},
+		{
+			"invalid, too long parts, BD_ADDR",
+			"aa:bb:cc01:dd:ee:ff",
+			false,
+			[]hci.BtAddress{},
+		},
+	}
+
+	for _, test := range testdata {
+		t.Run(test.name, func(t *testing.T) {
+			filt, err := parsePartialAddrFilter(test.input)
+			if !test.valid {
+				if err == nil {
+					t.Errorf("%s: expected parsing to fail", test.name)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("%s: unexpected error %v", test.name, err)
+					return
+				}
+				for _, a := range test.match {
+					report := hci.AdvertisingReport{
+						EventType: hci.AdvInd,
+						Address:   a,
+						Data:      nil,
+						Rssi:      -70,
+					}
+					if !filt.Filter(&report) {
+						t.Errorf("%s: no match for filter with address %s", test.name, a.String())
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestParseAdTypeFilter(t *testing.T) {
 
 	testdata := []struct {

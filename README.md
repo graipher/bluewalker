@@ -46,13 +46,15 @@ Usage of ./bluewalker:
   -device string
         HCI device to use
   -duration int
-        Number of seconds to scan (default 5)
+        Number of seconds to scan, -1 to scan indefinitely (default 5)
   -filter-addr string
         List of addresses where advertisement data is accepted from
   -filter-adtype string
         Only show devices whose Advertising data contains structures with specified type(s)
   -filter-irk string
         Only show devices which can be resolved by given IRK
+  -filter-partial-addr string
+        Filter by partial address bytes
   -filter-vendor string
         Only show devices whose vendor specific advertising data starts with given bytes
   -json
@@ -135,6 +137,10 @@ summary information.
 (private) address, add the address type after comma to the address string.
 Multiple addresses can be given if they are separated by semicolons.
 For example: `sudo ./bluewalker -device hci0 -filter-addr "4f:c0:f1:51:4f:22,random;57:68:4b:42:45:0a,random"`
+
+* To display information only about devices whose address start with given
+bytes, use `-filter-partial-addr`. The address part can be given either
+as BD_ADDR (`aa:bb:cc`) or as hex string (`0xaabbcc`)
 
  * To filter devices based on the vendor specific advertising data, use
 `-filter-vendor <data>`, where data is matched against the start of vendor

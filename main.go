@@ -30,24 +30,25 @@ const (
 
 // Command line settings
 type settings struct {
-	device       string
-	active       bool
-	duration     int
-	debug        bool
-	addrFilter   string
-	vendorFilter string
-	adTypeFilter string
-	irkFilter    string
-	ruuvi        bool
-	json         bool
-	socketPath   string
-	observer     bool
-	version      bool
-	broadcaster  bool
-	advData      string
-	scanResp     string
-	randomAddr   string
-	filePath     string
+	device         string
+	active         bool
+	duration       int
+	debug          bool
+	addrFilter     string
+	partAddrFilter string
+	vendorFilter   string
+	adTypeFilter   string
+	irkFilter      string
+	ruuvi          bool
+	json           bool
+	socketPath     string
+	observer       bool
+	version        bool
+	broadcaster    bool
+	advData        string
+	scanResp       string
+	randomAddr     string
+	filePath       string
 }
 
 type output struct {
@@ -161,6 +162,7 @@ func init() {
 	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan, -1 to scan indefinitely")
 	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
+	flag.StringVar(&cmdline.partAddrFilter, "filter-partial-addr", "", "Filter by partial address bytes")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
 	flag.StringVar(&cmdline.irkFilter, "filter-irk", "", "Only show devices which can be resolved by given IRK")
@@ -174,6 +176,7 @@ func init() {
 	flag.StringVar(&cmdline.randomAddr, "random-addr", "", "Random LE Address to set")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 	flag.StringVar(&cmdline.filePath, "output-file", "", "Write output to given file, ('-' to indicate stdout)")
+
 }
 
 func formatAddress(addr hci.BtAddress) string {
@@ -473,6 +476,14 @@ func main() {
 
 	if cmdline.irkFilter != "" {
 		filt, err := parseIrkFilter(cmdline.irkFilter)
+		if err != nil {
+			errorCritical(nil, fmt.Sprintf("%v", err))
+		}
+		filters = append(filters, filt)
+	}
+
+	if cmdline.partAddrFilter != "" {
+		filt, err := parsePartialAddrFilter(cmdline.partAddrFilter)
 		if err != nil {
 			errorCritical(nil, fmt.Sprintf("%v", err))
 		}
