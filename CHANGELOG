@@ -1,3 +1,13 @@
+
+v0.2.2 (2019-08-28)
+
+ * Add filter for showing information only about devices whose address start
+   with given bytes (--filter-partial-addr 0xaabbcc or
+   --filter-partial-addr aa:bb:cc)
+
+ * When writing output to UNIX socket, terminate the program if socket is
+   closed
+
 v0.2.1 (2019-08-10)
 
  * Add support for file output (-output-file command line option), which
