@@ -25,7 +25,7 @@ import (
 
 const (
 	//BluewalkerVersion contains the current version string
-	BluewalkerVersion string = "0.2.2"
+	BluewalkerVersion string = "0.2.3-dev"
 )
 
 // Command line settings
