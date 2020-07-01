@@ -221,6 +221,9 @@ func TestReportWithNoAdData(t *testing.T) {
 	if len(ar[0].Data) != 0 {
 		t.Errorf("Expected not AD structures, got %d", len(ar[0].Data))
 	}
+	if ar[0].Data == nil {
+		t.Errorf("Expected empty slice instead of nil for AD structures")
+	}
 
 }
 

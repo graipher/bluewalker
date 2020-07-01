@@ -441,6 +441,9 @@ func DecodeAdvertisingReport(buf []byte) ([]*AdvertisingReport, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Malformed data in AD Structures: %s", err.Error())
 			}
+		} else {
+			// initialize to empty slice, not nil
+			ret[i].Data = []*AdStructure{}
 		}
 		b, err = rd.ReadByte()
 		if err != nil {
