@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gitlab.com/jtaimisto/bluewalker/logging"
 	"golang.org/x/sys/unix"
 )
 
@@ -32,11 +33,11 @@ func createSocket(devindex int) (*hciSocket, error) {
 		unix.Close(fd)
 		return nil, err
 	}
-	log.Printf("Bound fd %d to HCI device %d ", fd, sa.Dev)
+	logging.Debug.Printf("Bound fd %d to HCI device %d ", fd, sa.Dev)
 
 	tv := &unix.Timeval{Sec: 1}
 	if err = unix.SetsockoptTimeval(fd, unix.SOL_SOCKET, unix.SO_RCVTIMEO, tv); err != nil {
-		log.Printf("Unable to set RCVTO: %s", err.Error())
+		logging.Warning.Printf("Unable to set RCVTO: %s", err.Error())
 	}
 
 	return &hciSocket{fd: fd}, nil
@@ -66,7 +67,9 @@ func (hci *hciSocket) Close() {
 
 func (hci *hciSocket) Write(buf []byte) error {
 
-	log.Printf("Writing:\n%s", hex.Dump(buf))
+	logging.IfTracing(func(l *log.Logger) {
+		l.Printf("Writing:\n%s", hex.Dump(buf))
+	})
 	n, err := unix.Write(hci.fd, buf)
 	if err != nil {
 		return err

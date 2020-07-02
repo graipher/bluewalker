@@ -1,10 +1,9 @@
 package host
 
 import (
-	"log"
-
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
+	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 // Parse Advertising Report Data.
@@ -31,8 +30,7 @@ func handleAdvertisingReport(ch chan *ScanReport, filter filter.AdFilter, data [
 		select {
 		case ch <- scanReport:
 		default:
-			log.Printf("Dropping AD report due channel being full!")
-
+			logging.Warning.Printf("Dropping AD report due channel being full!")
 		}
 	}
 	return nil

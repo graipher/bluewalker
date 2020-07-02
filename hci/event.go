@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+
+	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 // EventCode identifies the HCI Event received
@@ -40,7 +42,9 @@ type Event struct {
 // event can not be decoded
 func DecodeEvent(buf []byte) (*Event, error) {
 
-	log.Printf("Event:\n%s", hex.Dump(buf))
+	logging.IfTracing(func(l *log.Logger) {
+		l.Printf("Event:\n%s", hex.Dump(buf))
+	})
 
 	op := buf[0]
 	plen := int(buf[1])

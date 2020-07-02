@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+
+	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 // Transport allows sending and receiving raw HCI packets
@@ -450,7 +452,9 @@ func DecodeAdvertisingReport(buf []byte) ([]*AdvertisingReport, error) {
 			return nil, eMalformed
 		}
 		ret[i].Rssi = int8(b)
-		log.Printf("Advertising report: %s", ret[i].String())
+		logging.IfTracing(func(l *log.Logger) {
+			l.Printf("Advertising report: %s", ret[i].String())
+		})
 	}
 	return ret, nil
 }

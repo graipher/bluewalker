@@ -3,12 +3,12 @@ package host
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
+	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 // exec is used when HCI commands need to be sent to controller
@@ -97,7 +97,7 @@ func (h *Host) eventReceiver() {
 		buf, err := h.tr.Read()
 		if err != nil {
 			if !os.IsTimeout(err) {
-				log.Printf("Error while reading: %s", err.Error())
+				logging.Warning.Printf("Error while reading: %s", err.Error())
 			}
 			continue
 		}
@@ -105,13 +105,13 @@ func (h *Host) eventReceiver() {
 			continue
 		}
 		if buf[0] != hci.HciEventPacket {
-			log.Printf("Received unexpected packet from controller")
+			logging.Debug.Printf("Received unexpected packet from controller")
 			continue
 		}
-		log.Printf("Received %d bytes of event", len(buf)-1)
+		logging.Debug.Printf("Received %d bytes of event", len(buf)-1)
 		h.evt <- buf[1:]
 	}
-	log.Printf("EventReceiver closing")
+	logging.Trace.Printf("EventReceiver closing")
 }
 
 // eventHandler is run on its own goroutine and it reads the events
@@ -123,34 +123,34 @@ func (h *Host) eventHandler() {
 	for buf := range h.evt {
 		evt, err := hci.DecodeEvent(buf)
 		if err != nil {
-			log.Printf("Received invalid event: %s", err.Error())
+			logging.Warning.Printf("Received invalid event: %s", err.Error())
 			continue
 		}
-		log.Printf("Received %s event", evt.Code.String())
+		logging.Debug.Printf("Received %s event", evt.Code.String())
 		switch evt.Code {
 		case hci.EventCodeCommandComplete:
 			cc, err := hci.DecodeCommandComplete(evt)
 			if err != nil {
-				log.Printf("Received invalid Command Complete event: %s", err.Error())
+				logging.Warning.Printf("Received invalid Command Complete event: %s", err.Error())
 				continue
 			}
 			h.cc <- cc
 		case hci.EventCodeLeMeta:
 			meta, err := hci.DecodeLeMeta(evt)
 			if err != nil {
-				log.Printf("Received invalid LE Meta event: %s", err.Error())
+				logging.Warning.Printf("Received invalid LE Meta event: %s", err.Error())
 				continue
 			}
 			if meta.GetSubeventCode() == hci.SubeventAdvertisingReport {
 				if err := handleAdvertisingReport(h.ad, h.filters, meta.GetParameters()); err != nil {
-					log.Printf("Error while parsing Advertising report: %s", err.Error())
+					logging.Warning.Printf("Error while parsing Advertising report: %s", err.Error())
 				}
 			}
 		default:
-			log.Printf("Received unexpected event %s", evt.Code.String())
+			logging.Debug.Printf("Received unexpected event %s", evt.Code.String())
 		}
 	}
-	log.Printf("Event handler stopping")
+	logging.Trace.Printf("Event handler stopping")
 }
 
 // executor is run on its own goroutine and it is responsible for for
@@ -165,7 +165,7 @@ func (h *Host) executor() {
 	numCommands := 1
 
 	for e := range h.cmd {
-		log.Printf("Executing command %s", e.cmd.OpCode.String())
+		logging.Debug.Printf("Executing command %s", e.cmd.OpCode.String())
 		if numCommands == 0 {
 			e.fail(fmt.Errorf("Flow control error"))
 			continue
@@ -182,12 +182,12 @@ func (h *Host) executor() {
 			select {
 			case cc := <-h.cc:
 				numCommands = int(cc.GetNumHciCommandPackets())
-				log.Printf("Number of HCI packets increased to %d", numCommands)
+				logging.Debug.Printf("Number of HCI packets increased to %d", numCommands)
 				if !completed && cc.GetCommandOpcode() == e.cmd.OpCode {
 					completed = true
 					e.complete(cc)
 				} else if !completed {
-					log.Printf("Received unexepcted cc for %s ", cc.GetCommandOpcode().String())
+					logging.Warning.Printf("Received unexepcted cc for %s ", cc.GetCommandOpcode().String())
 				}
 			}
 		}
@@ -265,7 +265,7 @@ func (h *Host) initializeController() error {
 // Init initializes the host
 func (h *Host) Init() error {
 
-	log.Printf("Initializing Host")
+	logging.Debug.Printf("Initializing Host")
 
 	h.wg.Add(1)
 	// Start the event and command handlng goroutines
@@ -273,7 +273,7 @@ func (h *Host) Init() error {
 	go h.eventHandler()
 	go h.executor()
 
-	log.Printf("Resetting...")
+	logging.Debug.Printf("Resetting...")
 
 	if err := h.initializeController(); err != nil {
 		// XXX: Deinitialize
@@ -310,7 +310,7 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 	parameters[6] = 0x00
 	cmd.Parameters(parameters)
 
-	log.Printf("Setting scan parameters")
+	logging.Debug.Printf("Setting scan parameters")
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return nil, fmt.Errorf("Unable to set Scan Parameters: %s", err.Error())
 	}
@@ -324,7 +324,7 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 	parameters[1] = 0x00
 	cmd.Parameters(parameters)
 
-	log.Printf("Starting scan")
+	logging.Debug.Printf("Starting scan")
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return nil, fmt.Errorf("Unable to start scanning: %s", err.Error())
 	}
@@ -475,7 +475,7 @@ func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
 
 // Deinit will deinitialize Host
 func (h *Host) Deinit() {
-	log.Printf("Deinitializing host")
+	logging.Debug.Printf("Deinitializing host")
 	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
 	// not checking the return value since there is not much we can do on error
 	h.executeStatusCommand(&cmd)
@@ -490,5 +490,5 @@ func (h *Host) Deinit() {
 	close(h.evt)
 	close(h.cc)
 	close(h.ad)
-	log.Printf("Deinitialization done")
+	logging.Debug.Printf("Deinitialization done")
 }

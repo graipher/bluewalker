@@ -7,8 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -20,6 +18,7 @@ import (
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 	"gitlab.com/jtaimisto/bluewalker/host"
+	"gitlab.com/jtaimisto/bluewalker/logging"
 	"gitlab.com/jtaimisto/bluewalker/ruuvi"
 )
 
@@ -327,7 +326,7 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
 				ruuviData, err := ruuvi.Decode(ads.Data)
 				if err != nil {
-					log.Printf("Unable to parse ruuvi data: %v", err)
+					logging.Warning.Printf("Unable to parse ruuvi data: %v", err)
 					continue
 				}
 				if err := outputf(ruuviData, sr.Address, sr.Rssi); err != nil {
@@ -440,8 +439,8 @@ func main() {
 		errorCritical(nil, "Missing device name")
 	}
 
-	if !cmdline.debug {
-		log.SetOutput(ioutil.Discard)
+	if cmdline.debug {
+		logging.SetLogLevel(logging.DEBUG)
 	}
 	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
@@ -591,7 +590,7 @@ func main() {
 		}
 	}
 
-	log.Printf("Using device %s ", cmdline.device)
+	logging.Debug.Printf("Using device %s ", cmdline.device)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
@@ -672,7 +671,7 @@ func main() {
 	case <-tick:
 	case <-termChan:
 	case s := <-sig:
-		log.Printf("Received signal %s, stopping ", s)
+		logging.Debug.Printf("Received signal %s, stopping ", s)
 	}
 
 	if cmdline.broadcaster {
