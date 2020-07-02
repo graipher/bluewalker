@@ -33,6 +33,7 @@ type settings struct {
 	active         bool
 	duration       int
 	debug          bool
+	trace          bool
 	addrFilter     string
 	partAddrFilter string
 	vendorFilter   string
@@ -160,6 +161,7 @@ func init() {
 	flag.BoolVar(&cmdline.active, "active", false, "Active scanning")
 	flag.IntVar(&cmdline.duration, "duration", 5, "Number of seconds to scan, -1 to scan indefinitely")
 	flag.BoolVar(&cmdline.debug, "debug", false, "Enable debug messages")
+	flag.BoolVar(&cmdline.trace, "log-trace", false, "Enable more verbose trace logging in addition to debugging")
 	flag.StringVar(&cmdline.addrFilter, "filter-addr", "", "List of addresses where advertisement data is accepted from")
 	flag.StringVar(&cmdline.partAddrFilter, "filter-partial-addr", "", "Filter by partial address bytes")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
@@ -441,6 +443,9 @@ func main() {
 
 	if cmdline.debug {
 		logging.SetLogLevel(logging.DEBUG)
+	}
+	if cmdline.trace {
+		logging.SetLogLevel(logging.TRACE)
 	}
 	var filters []filter.AdFilter
 	if cmdline.addrFilter != "" {
