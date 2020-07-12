@@ -4,8 +4,10 @@ package hci
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -85,6 +87,9 @@ func (hci *hciSocket) Read() ([]byte, error) {
 	buf := make([]byte, 512)
 	n, err := unix.Read(hci.fd, buf)
 	if err != nil {
+		if errors.Is(err, unix.EINTR) || os.IsTimeout(err) {
+			return nil, ErrReadAgain{orig: err}
+		}
 		return nil, err
 	}
 	return buf[0:n], nil

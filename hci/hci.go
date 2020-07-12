@@ -18,6 +18,21 @@ type Transport interface {
 	Write(buffer []byte) error
 }
 
+// ErrReadAgain is returned by Transport.Read() if the read was
+// interrupted (by EINTR or by timeout) and should be tried again.
+// ErrReadAgain wraps the original error.
+type ErrReadAgain struct {
+	orig error
+}
+
+func (err ErrReadAgain) Error() string {
+	return fmt.Sprintf("Try again (%v)", err.orig)
+}
+
+func (err ErrReadAgain) Unwrap() error {
+	return err.orig
+}
+
 const (
 	hciCommandPacket byte = 0x01
 	hciACLPacket     byte = 0x02

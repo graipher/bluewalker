@@ -2,8 +2,8 @@ package host
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"os"
 	"sync"
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
@@ -96,8 +96,9 @@ func (h *Host) eventReceiver() {
 	for !h.isClosing() {
 		buf, err := h.tr.Read()
 		if err != nil {
-			if !os.IsTimeout(err) {
-				logging.Warning.Printf("Error while reading: %s", err.Error())
+			var again hci.ErrReadAgain
+			if !errors.As(err, &again) {
+				logging.Warning.Printf("Error while reading: %v", err)
 			}
 			continue
 		}
