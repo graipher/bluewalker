@@ -59,6 +59,8 @@ Usage of ./bluewalker:
         Only show devices whose vendor specific advertising data starts with given bytes
   -json
         Output data as json
+  -log-trace
+        Enable more verbose trace logging in addition to debugging
   -observer
         Do scanning in observer mode (display advertising packets as they are received)
   -output-file string
@@ -80,7 +82,8 @@ Bluetooth devices can be viewed with `hciconfig` command. The selected
 hci device needs to be down for Bluewalker to be able to use it. Use
 `sudo hciconfig <hcidevice> down` to close selected device. Then Bluewalker
 can be started using `sudo bluewalker -device <hcidevice>`. Bluewalker needs
-to be run as root to be able to access the raw HCI device.
+to be run as root (or have `cap_net_admin` capability)
+to be able to access the raw HCI device.
 
 ### Collector -mode
 By default Bluewalker listens for available Bluetooth LE advertisements for
