@@ -1,3 +1,13 @@
+v0.2.3 (2020-07-13)
+
+ * When printing advertising data in JSON format, ensure the "data" section
+   contains empty array '[]' if there was no advertisment data (or none could
+   be parsed).
+
+ * Implement better support for printing debug traces. By default print only
+   warning messages. This concerns mostly those using bluewalker as library,
+   as there was quite a lot of debug messages being logged.
+
 
 v0.2.2 (2019-08-28)
 
@@ -16,21 +26,21 @@ v0.2.1 (2019-08-10)
 
 v0.2.0 (2019-04-09)
 
-* Bluewalker can now read ruuvi tag data format 5 as well. The JSON output
-  when listening for ruuvi tags has changed to include new fields present
-  in v5 data.
+ * Bluewalker can now read ruuvi tag data format 5 as well. The JSON output
+   when listening for ruuvi tags has changed to include new fields present
+   in v5 data.
 
-* Bluewalker now supports setting random address using -random-addr
-  command line option
+ * Bluewalker now supports setting random address using -random-addr
+   command line option
 
-* Bluewalker can be used to send advertising data. The mode is enabled with
-  -broadcast command line option, advertising and scan response data can be
-  set with -adv-data and -scan-resp command line options.
+ * Bluewalker can be used to send advertising data. The mode is enabled with
+   -broadcast command line option, advertising and scan response data can be
+   set with -adv-data and -scan-resp command line options.
 
-* When using filters, packages matching all filters are shown instead of showing
-  packets matching any filters. Filters which can have multiple values,
-  like address or AD types will match any values. Hopefully this makes
-  filtering a bit more intuitive.
+ * When using filters, packages matching all filters are shown instead of showing
+   packets matching any filters. Filters which can have multiple values,
+   like address or AD types will match any values. Hopefully this makes
+   filtering a bit more intuitive.
 
 v0.1.0 (2019-02-10)
 
