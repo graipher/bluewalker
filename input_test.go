@@ -278,7 +278,7 @@ func TestParseAdTypeFilter(t *testing.T) {
 					report := hci.AdvertisingReport{
 						EventType: hci.AdvInd,
 						Address:   addr,
-						Data:      []*hci.AdStructure{&hci.AdStructure{Typ: adt, Data: []byte{}}},
+						Data:      []*hci.AdStructure{{Typ: adt, Data: []byte{}}},
 					}
 					if !filts.Filter(&report) {
 						t.Errorf("%s : No match in filter for type %v", test.name, adt)
@@ -332,7 +332,7 @@ func TestParseVendorSpecFilter(t *testing.T) {
 				report := hci.AdvertisingReport{
 					EventType: hci.AdvInd,
 					Address:   addr,
-					Data:      []*hci.AdStructure{&hci.AdStructure{Typ: hci.AdManufacturerSpecific, Data: test.vendorData}},
+					Data:      []*hci.AdStructure{{Typ: hci.AdManufacturerSpecific, Data: test.vendorData}},
 				}
 				if !filter.Filter(&report) {
 					t.Errorf("%s Filter did not match vendor data", test.name)
@@ -413,15 +413,15 @@ func TestParseAdStructue(t *testing.T) {
 			"valid",
 			"0x01, 0x010203",
 			true,
-			[]hci.AdStructure{hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x01, 0x02, 0x03}}},
+			[]hci.AdStructure{{Typ: hci.AdFlags, Data: []byte{0x01, 0x02, 0x03}}},
 		},
 		{
 			"valid, multiple",
 			"0x01, 0x010203; 0x0a, 0x0001",
 			true,
 			[]hci.AdStructure{
-				hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x01, 0x02, 0x03}},
-				hci.AdStructure{Typ: hci.AdTxPower, Data: []byte{0x00, 0x01}},
+				{Typ: hci.AdFlags, Data: []byte{0x01, 0x02, 0x03}},
+				{Typ: hci.AdTxPower, Data: []byte{0x00, 0x01}},
 			},
 		},
 		{

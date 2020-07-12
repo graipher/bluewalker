@@ -690,11 +690,11 @@ func TestCommand(t *testing.T) {
 			"Set Advertising Data",
 			func(h *Host, ch chan error) {
 				s := []*hci.AdStructure{
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdCompleteLocalName,
 						Data: []byte{0x20, 0x00},
 					},
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdAppearance,
 						Data: []byte{0x01, 0x02},
 					},
@@ -722,11 +722,11 @@ func TestCommand(t *testing.T) {
 			"Set Scan response",
 			func(h *Host, ch chan error) {
 				s := []*hci.AdStructure{
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdCompleteLocalName,
 						Data: []byte{0x20, 0x00},
 					},
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdAppearance,
 						Data: []byte{0x01, 0x02},
 					},
@@ -754,12 +754,12 @@ func TestCommand(t *testing.T) {
 			"Set Advertising Data too big",
 			func(h *Host, ch chan error) {
 				s := []*hci.AdStructure{
-					&hci.AdStructure{
+					{
 						Typ: hci.AdCompleteLocalName,
 						Data: []byte{0x20, 0x00, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a,
 							0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a},
 					},
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdAppearance,
 						Data: []byte{0x01, 0x02, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a},
 					},
@@ -775,11 +775,11 @@ func TestCommand(t *testing.T) {
 			"Set Advertising Data Fail",
 			func(h *Host, ch chan error) {
 				s := []*hci.AdStructure{
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdCompleteLocalName,
 						Data: []byte{0x20, 0x00},
 					},
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdAppearance,
 						Data: []byte{0x01, 0x02},
 					},
@@ -795,11 +795,11 @@ func TestCommand(t *testing.T) {
 			"Set Scan response fail",
 			func(h *Host, ch chan error) {
 				s := []*hci.AdStructure{
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdCompleteLocalName,
 						Data: []byte{0x20, 0x00},
 					},
-					&hci.AdStructure{
+					{
 						Typ:  hci.AdAppearance,
 						Data: []byte{0x01, 0x02},
 					},
