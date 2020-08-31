@@ -146,6 +146,9 @@ func (dev *foundDevice) String() string {
 			sb.WriteString(fmt.Sprintf("\t%s\n\t\tName: \"%s\"\n", ad, string(ad.Data)))
 		case hci.AdDeviceAddress:
 			sb.WriteString(fmt.Sprintf("\t%s (%s)\n", ad, decodeDeviceAddress(ad.Data)))
+		case hci.AdServiceData:
+			dec := decodeServiceData(ad.Data)
+			sb.WriteString(fmt.Sprintf("\t%s: %s\n", ad.Typ.String(), dec))
 		default:
 			sb.WriteString(fmt.Sprintf("\t%s\n", ad))
 		}
@@ -256,6 +259,33 @@ func decodeDeviceAddress(data []byte) string {
 		addr.Atype = hci.LeRandomAddress
 	}
 	return formatAddress(addr)
+}
+
+func decodeServiceData(data []byte) string {
+	// Service Data starts with 16-bit UUID followed by service data
+	// Supplement to Bluetooth Core Specification ch 1.11
+	if len(data) < 2 {
+		return fmt.Sprintf("0x%x", data)
+	}
+	sb := strings.Builder{}
+	uuid := binary.LittleEndian.Uint16(data[0:2])
+	sb.WriteString(fmt.Sprintf("UUID: 0x%.4x", uuid))
+	switch uuid {
+	case 0xfd6f:
+		// Google & Apple Exposure Notification for COVID-19
+		// https://covid19-static.cdn-apple.com/applications/covid19/current/static/contact-tracing/pdf/ExposureNotification-BluetoothSpecificationv1.2.pdf?1
+		sb.WriteString(fmt.Sprintf(", Exposure Notification"))
+		if len(data) < 22 {
+			sb.WriteString(fmt.Sprintf("\n\t\t(invalid data) 0x%x", data[2:]))
+		} else {
+			sb.WriteString(fmt.Sprintf("\n\t\tProximity Identifier: 0x%x, Encrypted Metadata: 0x%x", data[2:18], data[18:]))
+		}
+	default:
+		if len(data) > 2 {
+			sb.WriteString(fmt.Sprintf(", Data: 0x%x", data[2:]))
+		}
+	}
+	return sb.String()
 }
 
 //print the collected information about found devices
