@@ -7,7 +7,6 @@ import (
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
-	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 func parseAddress(addr string) (hci.BtAddress, error) {
@@ -156,11 +155,9 @@ func parseAdTypeFilters(types string) (filter.AdFilter, error) {
 }
 
 func parseAdDataFilters(ads string) (filter.AdFilter, error) {
-	logging.Debug.Printf("Parsing filters from %s", ads)
 	parts := strings.Split(ads, ";")
 	filters := make([]filter.AdFilter, len(parts))
 	for i, part := range parts {
-		logging.Debug.Printf("parsing part from %s", part)
 		t, d, err := parseAdStructure(part)
 		if err != nil {
 			return nil, err
