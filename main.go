@@ -38,6 +38,7 @@ type settings struct {
 	partAddrFilter string
 	vendorFilter   string
 	adTypeFilter   string
+	adDataFilter   string
 	irkFilter      string
 	ruuvi          bool
 	json           bool
@@ -169,6 +170,7 @@ func init() {
 	flag.StringVar(&cmdline.partAddrFilter, "filter-partial-addr", "", "Filter by partial address bytes")
 	flag.StringVar(&cmdline.vendorFilter, "filter-vendor", "", "Only show devices whose vendor specific advertising data starts with given bytes")
 	flag.StringVar(&cmdline.adTypeFilter, "filter-adtype", "", "Only show devices whose Advertising data contains structures with specified type(s)")
+	flag.StringVar(&cmdline.adDataFilter, "filter-addata", "", "Only show devices whose Advertising Data matches given filter (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
 	flag.StringVar(&cmdline.irkFilter, "filter-irk", "", "Only show devices which can be resolved by given IRK")
 	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
@@ -502,6 +504,17 @@ func main() {
 			errorCritical(nil, "AD type filter not supported on Ruuvi tag mode")
 		}
 		if filt, err := parseAdTypeFilters(cmdline.adTypeFilter); err != nil {
+			errorCritical(nil, fmt.Sprintf("%v", err))
+		} else {
+			filters = append(filters, filt)
+		}
+	}
+
+	if cmdline.adDataFilter != "" {
+		if cmdline.ruuvi {
+			errorCritical(nil, "AD type filter not supported on Ruuvi tag mode")
+		}
+		if filt, err := parseAdDataFilters(cmdline.adDataFilter); err != nil {
 			errorCritical(nil, fmt.Sprintf("%v", err))
 		} else {
 			filters = append(filters, filt)

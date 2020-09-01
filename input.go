@@ -7,6 +7,7 @@ import (
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
+	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 func parseAddress(addr string) (hci.BtAddress, error) {
@@ -154,25 +155,48 @@ func parseAdTypeFilters(types string) (filter.AdFilter, error) {
 	return filter.Any(filters), nil
 }
 
+func parseAdDataFilters(ads string) (filter.AdFilter, error) {
+	logging.Debug.Printf("Parsing filters from %s", ads)
+	parts := strings.Split(ads, ";")
+	filters := make([]filter.AdFilter, len(parts))
+	for i, part := range parts {
+		logging.Debug.Printf("parsing part from %s", part)
+		t, d, err := parseAdStructure(part)
+		if err != nil {
+			return nil, err
+		}
+		filters[i] = filter.ByAdData(t, d)
+	}
+	return filter.All(filters), nil
+}
+
+func parseAdStructure(adstruct string) (hci.AdType, []byte, error) {
+	parts := strings.Split(adstruct, ",")
+	if len(parts) != 2 {
+		return 0, nil, fmt.Errorf("Expected Ad Structure as \"<type>,<data>\"")
+	}
+	typ, err := parseByteArray(parts[0], 1)
+	if err != nil {
+		return 0, nil, fmt.Errorf("Invalid Ad Structure type %s (%s)", parts[0], err.Error())
+	}
+	data, err := parseByteArray(parts[1], -1)
+	if err != nil {
+		return 0, nil, fmt.Errorf("Invalid value for Ad Structure data (%s)", err.Error())
+	}
+	return hci.AdType(typ[0]), data, nil
+}
+
 //parseAdStructures parses one or more Ad Structures from command line parameters
 func parseAdStructures(structs string) ([]*hci.AdStructure, error) {
 
 	ads := strings.Split(structs, ";")
 	ret := make([]*hci.AdStructure, 0)
 	for _, ad := range ads {
-		parts := strings.Split(ad, ",")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("Expected Ad Structure as \"<type>,<data>\"")
-		}
-		typ, err := parseByteArray(parts[0], 1)
+		t, d, err := parseAdStructure(ad)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid Ad Structure type %s (%s)", parts[0], err.Error())
+			return nil, err
 		}
-		data, err := parseByteArray(parts[1], -1)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid value for Ad Structure data (%s)", err.Error())
-		}
-		ret = append(ret, &hci.AdStructure{Typ: hci.AdType(typ[0]), Data: data})
+		ret = append(ret, &hci.AdStructure{Typ: t, Data: d})
 	}
 	return ret, nil
 }
