@@ -66,6 +66,35 @@ func ByVendor(preamble []byte) AdFilter {
 	return &vendorFilter{preamble: preamble}
 }
 
+type adDataFilter struct {
+	typ      hci.AdType
+	preamble []byte
+}
+
+func (a *adDataFilter) Filter(report *hci.AdvertisingReport) bool {
+	ret := false
+	for _, data := range report.Data {
+		if data.Typ == a.typ {
+			if len(data.Data) < len(a.preamble) {
+				continue
+			}
+			if bytes.Equal(data.Data[:len(a.preamble)], a.preamble) {
+				ret = true
+				break
+			}
+		}
+	}
+
+	return ret
+}
+
+// ByAdData return AdFilter which can be used to filter Advertising Reports
+// based on Ad Type and start of the advertising data. The filter matches if
+// both type and the start of the data match the ones given to the filter
+func ByAdData(typ hci.AdType, preamble []byte) AdFilter {
+	return &adDataFilter{typ: typ, preamble: preamble}
+}
+
 type adTypeFilter struct {
 	typ hci.AdType
 }
