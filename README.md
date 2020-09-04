@@ -47,6 +47,8 @@ Usage of ./bluewalker:
         HCI device to use
   -duration int
         Number of seconds to scan, -1 to scan indefinitely (default 5)
+  -filter-addata string
+        Only show devices whose Advertising Data matches given filter (Format: "<type>,<data>;<type>,<data>", all values hexadecimal)
   -filter-addr string
         List of addresses where advertisement data is accepted from
   -filter-adtype string
@@ -155,6 +157,16 @@ all advertising apple devices use: `sudo ./bluewalker -device hci0 -filter-vendo
 For example, to search all devices which have device name in advertisement data use:
 `sudo ./bluewalker -device hci0 -filter-adtype 0x08,0x09`. See https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile for list of allowed AD Types.
 
+ * To filter devices based on the Advertising Data present, use
+   `-filter-addata <type>,<value>;<type2>,<value2>`, where `type` is AD type value
+   in hexadecimal and `value` is bytes the advertising data should start with.
+   For example, to show only devices whose Advertising Data contains Complete
+   Local Name starting with letter `A` (0x41 in hex) use
+   `sudo ./bluewalker -device hci0 -filter-addata 0x09,0x41`. More than
+   one type, value pairs can be specified by separating them with `;`.
+   If multiple type, value -pairs are given the filter will match only
+   devices whose Advertising Data conatains _all_ of the specified elements.
+
  * To filter devices based on IRK (Identity Resolving Key), use `-filter-irk <key>`,
 where _key_ is 128-bit Identity Resolving Key to use to resolve resolvable
 private addresses (see, for example [here](https://blog.bluetooth.com/bluetooth-technology-protecting-your-privacy)).
@@ -196,6 +208,42 @@ Ruuvi device fc:d0:22:ad:85:7a,random (static), Data format:v5 (RSSI -29 dBm)
         Acceleration X: -0.07G, Y: 0.03G, Z: 1.01G
         TxPower: 4 dBm, Moves: 85, Seqno: 876
 ```
+
+### Scanning for Covid-19 Exposure Notifications
+
+Bluewalker can be used to scan for COVID-19 Exposure Notifications sent by
+Android or Apple iPhones if they have the contact tracing app (for example
+[Koronavilkku](https://koronavilkku.fi) in Finland) installed.
+
+The Exposure Notification Service beacons contain Complete 16-bit Service
+UUID (type 0x03) and Service Data - 16 bit UUID (type 0x16) Advertising
+Structures. The 16-bit UUID assigned for Exposure Notification Service is
+0xfd6f. We can use bluewalkers `-filter-addata` to show
+only devices which send advertising data containing these AD Structures:
+
+```
+sudo ./bluewalker -device hci0 -filter-addata "0x03,0x6ffd;0x16,0x6ffd" -observer -duration -1
+```
+
+Will show the advertising data as it is being received:
+
+```
+Device 31:5b:bf:92:cc:ed,random (non-resolvable private) (RSSI:-89 dBm; last seen Sep  4 22:07:40):
+Events:Non connectable undirected
+Advertising Data Structures:
+        Flags : 0x1a; [00011010](LE General Discoverable,LE & BR/EDR (controller),LE & BR/EDR (host))
+        Complete 16 Bit Service Class UUID : 0x6ffd
+        Service Data: UUID: 0xfd6f, Exposure Notification
+                Proximity Identifier: 0x27049fc9e37031dc6cb8ab1a37b59326, Encrypted Metadata: 0xceb176d2
+Device 09:55:39:99:c3:54,random (non-resolvable private) (RSSI:-75 dBm; last seen Sep  4 22:07:40):
+Events:Non connectable undirected
+Advertising Data Structures:
+        Flags : 0x1a; [00011010](LE General Discoverable,LE & BR/EDR (controller),LE & BR/EDR (host))
+        Complete 16 Bit Service Class UUID : 0x6ffd
+        Service Data: UUID: 0xfd6f, Exposure Notification
+                Proximity Identifier: 0x8880340faa038aca857b7ee6d407eb9b, Encrypted Metadata: 0x5235e408
+```
+
 
 ### Broadcaster mode - sending advertising packets
 
