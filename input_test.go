@@ -341,6 +341,110 @@ func TestParseVendorSpecFilter(t *testing.T) {
 		})
 	}
 }
+func TestParseAdDataFilter(t *testing.T) {
+
+	testdata := []struct {
+		name   string
+		input  string
+		valid  bool
+		values []struct {
+			data []byte
+			typ  hci.AdType
+		}
+	}{
+		{
+			"valid",
+			"0x09,0x010203",
+			true,
+			[]struct {
+				data []byte
+				typ  hci.AdType
+			}{{
+				[]byte{0x01, 0x02, 0x03, 0x04},
+				hci.AdCompleteLocalName,
+			}},
+		},
+		{
+			"valid, no 0x",
+			"09, 010203",
+			true,
+			[]struct {
+				data []byte
+				typ  hci.AdType
+			}{{
+				[]byte{0x01, 0x02, 0x03, 0x04},
+				hci.AdCompleteLocalName,
+			}},
+		},
+		{
+			"valid, multiple",
+			"0x09, 0x010203; 0x01, 0x41",
+			true,
+			[]struct {
+				data []byte
+				typ  hci.AdType
+			}{
+				{
+					[]byte{0x01, 0x02, 0x03, 0x04},
+					hci.AdCompleteLocalName,
+				},
+				{
+
+					[]byte{0x41, 0x42},
+					hci.AdFlags,
+				},
+			},
+		},
+		{
+			"Invalid bytes on data",
+			"0x09, 0xaab",
+			false,
+			[]struct {
+				data []byte
+				typ  hci.AdType
+			}{{}},
+		},
+		{
+			"Invalid bytes on type",
+			"9, 0xaabb",
+			false,
+			[]struct {
+				data []byte
+				typ  hci.AdType
+			}{{}},
+		},
+	}
+
+	for _, test := range testdata {
+		t.Run(test.name, func(t *testing.T) {
+			filter, err := parseAdDataFilters(test.input)
+			if !test.valid {
+				if err == nil {
+					t.Errorf("%s Expected error", test.name)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("%s unexpected error: %s", test.name, err.Error())
+				}
+				addr, _ := hci.BtAddressFromString("11:22:33:44:55:66")
+
+				structs := make([]*hci.AdStructure, len(test.values))
+				for i, v := range test.values {
+					structs[i] = &hci.AdStructure{Typ: v.typ, Data: v.data}
+				}
+
+				report := hci.AdvertisingReport{
+					EventType: hci.AdvInd,
+					Address:   addr,
+					Data:      structs,
+				}
+				if !filter.Filter(&report) {
+					t.Errorf("%s Filter did not match vendor data", test.name)
+				}
+			}
+		})
+	}
+}
 
 func TestParseIrkFilter(t *testing.T) {
 

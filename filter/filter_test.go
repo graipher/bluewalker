@@ -102,6 +102,37 @@ func TestVendorDataNoVendor(t *testing.T) {
 	}
 }
 
+func TestAdDataFiltering(t *testing.T) {
+	buf, _ := hex.DecodeString("414243")
+	filter := ByAdData(hci.AdCompleteLocalName, buf)
+
+	ndata, _ := hex.DecodeString("414243444546")
+	structs := make([]*hci.AdStructure, 1)
+	structs[0] = new(hci.AdStructure)
+	structs[0].Typ = hci.AdCompleteLocalName
+	structs[0].Data = ndata
+
+	report := buildAdvertisingReport("11:22:33:44:55:66", structs)
+	if !filter.Filter(report) {
+		t.Errorf("Expected the filter to match")
+	}
+}
+func TestAdDataFilteringNotMatch(t *testing.T) {
+	buf, _ := hex.DecodeString("414243")
+	filter := ByAdData(hci.AdCompleteLocalName, buf)
+
+	ndata, _ := hex.DecodeString("414043444546")
+	structs := make([]*hci.AdStructure, 1)
+	structs[0] = new(hci.AdStructure)
+	structs[0].Typ = hci.AdCompleteLocalName
+	structs[0].Data = ndata
+
+	report := buildAdvertisingReport("11:22:33:44:55:66", structs)
+	if filter.Filter(report) {
+		t.Errorf("Expected the filter to not match")
+	}
+}
+
 func TestAdTypeFiltering(t *testing.T) {
 
 	filt := ByAdType(hci.AdCompleteLocalName)
