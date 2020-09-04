@@ -1,3 +1,14 @@
+v0.2.4 (2020-08-05)
+
+ * Implement decoding for Exposure Notification Service Data used by
+   Android and Apple phones to send COVID-19 Exposure Noficications.
+   In collector and observer modes, the received Exposure Notification
+   data is now shown decoded.
+
+ * Add -filter-addata command line option and associated filter which can
+   be used to filter devices based on the advertising data they are sending.
+
+
 v0.2.3 (2020-07-13)
 
  * When printing advertising data in JSON format, ensure the "data" section
