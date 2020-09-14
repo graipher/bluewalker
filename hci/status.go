@@ -9,6 +9,7 @@ type ErrorCode byte
 //Defined Error codes
 const (
 	StatusSuccess           ErrorCode = 0x00
+	StatusUnknownCommand    ErrorCode = 0x01
 	StatusCommandDisallowed ErrorCode = 0x0c
 	StatusInvalidParams     ErrorCode = 0x12
 )
@@ -17,6 +18,8 @@ func (e ErrorCode) String() string {
 	switch e {
 	case StatusSuccess:
 		return "Success"
+	case StatusUnknownCommand:
+		return "Unknown HCI Command"
 	case StatusCommandDisallowed:
 		return "Command Disallowed"
 	case StatusInvalidParams:
