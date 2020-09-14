@@ -195,6 +195,23 @@ func (h *Host) executor() {
 	}
 }
 
+// CommandExecutionError is returned when HCI command could not be
+// executed.
+type CommandExecutionError struct {
+	status hci.ErrorCode     // Status code for the failure
+	op     hci.CommandOpCode // command that failed to execute
+}
+
+func (e *CommandExecutionError) Error() string {
+	return fmt.Sprintf("Command %s execution failed: %s ", e.op.String(), e.status.String())
+}
+
+// ErrorCode returns the error code indicating reason for command
+// execution failure
+func (e *CommandExecutionError) ErrorCode() hci.ErrorCode {
+	return e.status
+}
+
 // executeStatusCommand executes single HCI command which expects to have
 // 'status' parameter in the following CommandComplete event. This status
 // is checked and error is returned command execution failed.
@@ -209,7 +226,7 @@ func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
 	e.complete = func(cc *hci.CommandCompleteEvent) {
 		if cc.HasReturnParameters() {
 			if cc.GetStatusParameter() != hci.StatusSuccess {
-				err = fmt.Errorf("Command Failed: %s", cc.GetStatusParameter().String())
+				err = &CommandExecutionError{status: cc.GetStatusParameter(), op: cmd.OpCode}
 			}
 		} else {
 			err = fmt.Errorf("Received unexpected Command Complete with no status")

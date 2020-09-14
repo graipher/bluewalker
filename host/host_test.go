@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -101,6 +102,17 @@ func TestCommandExecFail(t *testing.T) {
 	err := <-ch
 	if err == nil {
 		t.Errorf("Expected the command execution to fail")
+	}
+	var execFailErr *CommandExecutionError
+	if errors.As(err, &execFailErr) {
+		if execFailErr.ErrorCode() != hci.StatusInvalidParams {
+			t.Errorf("Unexpected status code in returned error: %s", execFailErr.ErrorCode())
+		}
+		if execFailErr.op != hci.CommandReset {
+			t.Errorf("Unexpected OP code in returned error: %s", execFailErr.op)
+		}
+	} else {
+		t.Errorf("Expected CommandExecutionError to be returned")
 	}
 }
 
