@@ -295,6 +295,10 @@ func (h *Host) Init() error {
 
 	if err := h.initializeController(); err != nil {
 		// XXX: Deinitialize
+		var execErr *CommandExecutionError
+		if errors.As(err, &execErr) {
+			return fmt.Errorf("Unable to initialize controller: %w", execErr)
+		}
 		return fmt.Errorf("Unable to initialize controller: %s", err.Error())
 	}
 
