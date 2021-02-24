@@ -23,7 +23,7 @@ Bluewalker can be used in four different modes:
 
 ## Installing
 
-On Linux, with go 1.11 or newer installed:
+On Linux, with go 1.14 or newer installed:
 
 ```
 $ go get gitlab.com/jtaimisto/bluewalker
@@ -346,7 +346,7 @@ The format for device information structure is
 |data:type | The AD Type field value (in decimal)|
 |data:data | The received advertising bytes (base64 encoded string)|
 |last| timestamp when data was last received from this device|
-|RSSI| RSSI from the last received packet|
+|rssi| RSSI from the last received packet|
 |types|Array of strings containing names of different advertising event types received|
 |device| Address of the device where the data was received |
 |device:address| Bluetooth address as string |
