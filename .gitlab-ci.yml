@@ -15,3 +15,11 @@ run-tests:
   script:
    - go test -race -coverprofile=.cov.out gitlab.com/jtaimisto/bluewalker/...
    - go tool cover -func .cov.out
+
+check-min-version:
+  image: golang:1.14
+  stage: test
+  script:
+    - go install gitlab.com/jtaimisto/bluewalker
+    - go test gitlab.com/jtaimisto/bluewalker/...
+
