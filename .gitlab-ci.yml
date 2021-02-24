@@ -1,25 +1,28 @@
+# You can override the included template(s) by including variable overrides
+# See https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#priority-of-environment-variables
 image: golang:latest
-
 stages:
-  - build
-  - test
-
+- build
+- test
 build-main-app:
   stage: build
   script:
-    - go install gitlab.com/jtaimisto/bluewalker
-    - go install gitlab.com/jtaimisto/bluewalker/listener
-
+  - go install gitlab.com/jtaimisto/bluewalker
+  - go install gitlab.com/jtaimisto/bluewalker/listener
 run-tests:
   stage: test
   script:
-   - go test -race -coverprofile=.cov.out gitlab.com/jtaimisto/bluewalker/...
-   - go tool cover -func .cov.out
-
+  - go test -race -coverprofile=.cov.out gitlab.com/jtaimisto/bluewalker/...
+  - go tool cover -func .cov.out
 check-min-version:
   image: golang:1.14
   stage: test
   script:
-    - go install gitlab.com/jtaimisto/bluewalker
-    - go test gitlab.com/jtaimisto/bluewalker/...
-
+  - go install gitlab.com/jtaimisto/bluewalker
+  - go test gitlab.com/jtaimisto/bluewalker/...
+sast:
+  stage: test
+include:
+- template: Security/SAST.gitlab-ci.yml
