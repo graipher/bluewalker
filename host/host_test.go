@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
@@ -216,6 +217,29 @@ func TestExecutorWriteFail(t *testing.T) {
 	h.cmd <- &ex
 
 	// Wait for ex.fail() to be called
+	<-ch
+	close(h.cmd)
+	close(h.cc)
+}
+
+func TestExecutorTimeout(t *testing.T) {
+	h := New(new(testTransport))
+	// tweak the timeout value, we don't want to wait for 30 seconds
+	cmdExecutionTimeout = time.Duration(5 * time.Second)
+	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
+
+	ch := make(chan int)
+	ex := exec{cmd: &cmd,
+		complete: func(cc *hci.CommandCompleteEvent) {
+			t.FailNow()
+		},
+		fail: func(er error) {
+			ch <- 1
+		},
+	}
+	go h.executor()
+	h.cmd <- &ex
+	// wait for executor to timeout
 	<-ch
 	close(h.cmd)
 	close(h.cc)

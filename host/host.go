@@ -5,11 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"gitlab.com/jtaimisto/bluewalker/filter"
 	"gitlab.com/jtaimisto/bluewalker/hci"
 	"gitlab.com/jtaimisto/bluewalker/logging"
 )
+
+// how long to wait for command to execute
+var cmdExecutionTimeout = time.Duration(30 * time.Second)
+
+// Error for command execution timeout
+var errExecutionTimeout = fmt.Errorf("Command execution timed out")
 
 // exec is used when HCI commands need to be sent to controller
 type exec struct {
@@ -164,6 +171,7 @@ func (h *Host) executor() {
 
 	// number of commands we can execute
 	numCommands := 1
+	execTimer := time.NewTimer(cmdExecutionTimeout)
 
 	for e := range h.cmd {
 		logging.Debug.Printf("Executing command %s", e.cmd.OpCode.String())
@@ -175,6 +183,12 @@ func (h *Host) executor() {
 			e.fail(fmt.Errorf("Can not write: %s", err.Error()))
 			continue
 		}
+
+		if !execTimer.Stop() {
+			<-execTimer.C
+		}
+		execTimer.Reset(cmdExecutionTimeout)
+
 		numCommands--
 		completed := false
 		// we need to wait until the command has completed before starting
@@ -182,6 +196,10 @@ func (h *Host) executor() {
 		for !completed || numCommands == 0 {
 			select {
 			case cc := <-h.cc:
+				if cc == nil {
+					// channel is closed and we should thus be breaking out
+					break
+				}
 				numCommands = int(cc.GetNumHciCommandPackets())
 				logging.Debug.Printf("Number of HCI packets increased to %d", numCommands)
 				if !completed && cc.GetCommandOpcode() == e.cmd.OpCode {
@@ -189,6 +207,16 @@ func (h *Host) executor() {
 					e.complete(cc)
 				} else if !completed {
 					logging.Warning.Printf("Received unexepcted cc for %s ", cc.GetCommandOpcode().String())
+				}
+			case <-execTimer.C:
+				if !completed {
+					logging.Warning.Printf("Command %s execution timed out", e.cmd.OpCode.String())
+					completed = true
+					e.fail(errExecutionTimeout)
+					// The command complete has likely been lost somewhere
+					// increase the numCommands to allow sending new command
+					// otherwise we'll be stuck here looping and never
+					numCommands = 1
 				}
 			}
 		}
