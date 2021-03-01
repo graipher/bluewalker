@@ -151,6 +151,9 @@ func (dev *foundDevice) String() string {
 		case hci.AdServiceData:
 			dec := decodeServiceData(ad.Data)
 			sb.WriteString(fmt.Sprintf("\t%s: %s\n", ad.Typ.String(), dec))
+		case hci.AdManufacturerSpecific:
+			dec := decodeVendorSpecificData(ad.Data)
+			sb.WriteString(fmt.Sprintf("\t%s: %s\n", ad.Typ.String(), dec))
 		default:
 			sb.WriteString(fmt.Sprintf("\t%s\n", ad))
 		}
@@ -287,6 +290,23 @@ func decodeServiceData(data []byte) string {
 		if len(data) > 2 {
 			sb.WriteString(fmt.Sprintf(", Data: 0x%x", data[2:]))
 		}
+	}
+	return sb.String()
+}
+
+func decodeVendorSpecificData(data []byte) string {
+	if len(data) < 2 {
+		return fmt.Sprintf("0x%x", data)
+	}
+	sb := strings.Builder{}
+	companyID := binary.LittleEndian.Uint16(data[0:2])
+	if name, found := btCompanyIdentifiers[int(companyID)]; found {
+		sb.WriteString(fmt.Sprintf("%s (0x%.4x)", name, companyID))
+	} else {
+		sb.WriteString(fmt.Sprintf("Unknown company ID 0x%.4x", companyID))
+	}
+	if len(data) > 2 {
+		sb.WriteString(fmt.Sprintf(", Data:0x%x", data[2:]))
 	}
 	return sb.String()
 }
