@@ -488,7 +488,7 @@ func TestParseIrkFilter(t *testing.T) {
 					t.Errorf("%s Expected error", test.name)
 				}
 			} else {
-				if err != err {
+				if err != nil {
 					t.Fatalf("%s unexpected error %s", test.name, err.Error())
 				}
 
