@@ -57,14 +57,6 @@ func mkCommandCompleteEvent(status hci.ErrorCode, op hci.CommandOpCode, nrComple
 	return cc
 }
 
-func createTransport(rfunc func() ([]byte, error), wfunc func([]byte) error) {
-
-	tt := new(testTransport)
-	tt.received = make([][]byte, 0)
-	tt.wfunc = wfunc
-	tt.rfunc = rfunc
-}
-
 func TestCommandExecSuccess(t *testing.T) {
 
 	h := New(nil)
