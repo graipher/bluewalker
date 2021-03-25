@@ -339,7 +339,7 @@ func (h *Host) Init() error {
 //of the filters on list. The returned cannel should _not_ be closed.
 func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *ScanReport, error) {
 
-	if filters != nil && len(filters) > 0 {
+	if len(filters) > 0 {
 		h.filters = filter.All(filters)
 	}
 
