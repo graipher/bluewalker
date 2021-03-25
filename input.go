@@ -56,9 +56,7 @@ func parseAddressFilters(addresses string) (filter.AdFilter, error) {
 
 func parseByteArray(input string, length int) ([]byte, error) {
 	input = strings.TrimSpace(input)
-	if strings.HasPrefix(input, "0x") {
-		input = input[2:]
-	}
+	input = strings.TrimPrefix(input, "0x")
 	bytes, err := hex.DecodeString(input)
 	if err != nil {
 		return nil, err
