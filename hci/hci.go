@@ -144,7 +144,7 @@ func (adv *AdvType) UnmarshalJSON(b []byte) error {
 	case scanRspStr:
 		*adv = ScanRsp
 	default:
-		return fmt.Errorf("Invalid Advertising type value")
+		return fmt.Errorf("invalid Advertising type value")
 	}
 	return nil
 }
@@ -359,7 +359,7 @@ type AdStructure struct {
 func (ad *AdStructure) EncodeTo(buf []byte) (int, error) {
 	length := len(ad.Data) + 1 // (type + data)
 	if len(buf) < length+1 {
-		return 0, fmt.Errorf("Buffer too small to hold AD structure data")
+		return 0, fmt.Errorf("buffer too small to hold AD structure data")
 	}
 	buf[0] = byte(length)
 	buf[1] = byte(ad.Typ)
@@ -378,7 +378,7 @@ func decodeAdStructure(buf []byte) (*AdStructure, error) {
 		return nil, nil
 	}
 	if length+1 > len(buf) {
-		return nil, fmt.Errorf("Invalid length for AD Structure")
+		return nil, fmt.Errorf("invalid length for AD Structure")
 	}
 	t := AdType(buf[1])
 	dat := buf[2 : 2+length-1]
@@ -411,7 +411,7 @@ func parseAdData(buf []byte) ([]*AdStructure, error) {
 //Advertising Report Event. Returns all reports contained in event.
 func DecodeAdvertisingReport(buf []byte) ([]*AdvertisingReport, error) {
 
-	eMalformed := fmt.Errorf("Malformed data for advertising report")
+	eMalformed := fmt.Errorf("malformed data for advertising report")
 	rd := bytes.NewReader(buf)
 	b, err := rd.ReadByte()
 	if err != nil {
@@ -456,7 +456,7 @@ func DecodeAdvertisingReport(buf []byte) ([]*AdvertisingReport, error) {
 			}
 			ret[i].Data, err = parseAdData(advData)
 			if err != nil {
-				return nil, fmt.Errorf("Malformed data in AD Structures: %s", err.Error())
+				return nil, fmt.Errorf("malformed data in AD Structures: %s", err.Error())
 			}
 		} else {
 			// initialize to empty slice, not nil

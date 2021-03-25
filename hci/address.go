@@ -132,7 +132,7 @@ func (ba *BtAddress) UnmarshalJSON(b []byte) error {
 	case "BR/EDR":
 		ba.Atype = BrEdrAddress
 	default:
-		return fmt.Errorf("Invalid bluetooth address type")
+		return fmt.Errorf("invalid bluetooth address type")
 	}
 
 	return nil
@@ -176,16 +176,16 @@ func BtAddressFromString(address string) (BtAddress, error) {
 
 	parts := strings.Split(address, ":")
 	if len(parts) != 6 {
-		return BtAddress{}, fmt.Errorf("Invalid Bluetooth Address %s", address)
+		return BtAddress{}, fmt.Errorf("invalid Bluetooth Address %s", address)
 	}
 	addr := BtAddress{}
 	for i := 0; i < 6; i++ {
 		if len(parts[i]) != 2 {
-			return BtAddress{}, fmt.Errorf("Invalid Bluetooth Address %s", address)
+			return BtAddress{}, fmt.Errorf("invalid Bluetooth Address %s", address)
 		}
 		b, err := hex.DecodeString(parts[i])
 		if err != nil {
-			return BtAddress{}, fmt.Errorf("Invalid Bluetooth Address %s", address)
+			return BtAddress{}, fmt.Errorf("invalid Bluetooth Address %s", address)
 		}
 		addr.raw[5-i] = b[0]
 	}

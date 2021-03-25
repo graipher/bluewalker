@@ -49,7 +49,7 @@ func DecodeEvent(buf []byte) (*Event, error) {
 	op := buf[0]
 	plen := int(buf[1])
 	if int(plen) > len(buf)-2 {
-		return nil, fmt.Errorf("Too short event packet, expected at least %d bytes of parameters", plen)
+		return nil, fmt.Errorf("too short event packet, expected at least %d bytes of parameters", plen)
 	}
 	return &Event{Code: EventCode(op), parameters: buf[2 : plen+2]}, nil
 }
@@ -77,10 +77,10 @@ const (
 func DecodeCommandComplete(evt *Event) (*CommandCompleteEvent, error) {
 
 	if evt.Code != EventCodeCommandComplete {
-		return nil, fmt.Errorf("Unexpected event code %.2x", evt.Code)
+		return nil, fmt.Errorf("unexpected event code %.2x", evt.Code)
 	}
 	if len(evt.parameters) < ccMinParamLength {
-		return nil, fmt.Errorf("Not enough paramaters for Command Complete")
+		return nil, fmt.Errorf("not enough paramaters for Command Complete")
 	}
 	return &CommandCompleteEvent{Event: *evt}, nil
 }
@@ -115,10 +115,10 @@ func (cc *CommandCompleteEvent) GetStatusParameter() ErrorCode {
 // DecodeLeMeta returns given event as Le Meta Event
 func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
 	if evt.Code != EventCodeLeMeta {
-		return nil, fmt.Errorf("Unexpected event code 0x%.2x", evt.Code)
+		return nil, fmt.Errorf("unexpected event code 0x%.2x", evt.Code)
 	}
 	if len(evt.parameters) < leMetaParamLength {
-		return nil, fmt.Errorf("Not enough parameters for Le Meta Event")
+		return nil, fmt.Errorf("not enough parameters for Le Meta Event")
 	}
 	return &LeMetaEvent{Event: *evt}, nil
 }

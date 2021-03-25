@@ -16,7 +16,7 @@ import (
 var cmdExecutionTimeout = time.Duration(30 * time.Second)
 
 // Error for command execution timeout
-var errExecutionTimeout = fmt.Errorf("Command execution timed out")
+var errExecutionTimeout = fmt.Errorf("command execution timed out")
 
 // exec is used when HCI commands need to be sent to controller
 type exec struct {
@@ -176,11 +176,11 @@ func (h *Host) executor() {
 	for e := range h.cmd {
 		logging.Debug.Printf("Executing command %s", e.cmd.OpCode.String())
 		if numCommands == 0 {
-			e.fail(fmt.Errorf("Flow control error"))
+			e.fail(fmt.Errorf("flow control error"))
 			continue
 		}
 		if err := h.tr.Write(e.cmd.Encode()); err != nil {
-			e.fail(fmt.Errorf("Can not write: %s", err.Error()))
+			e.fail(fmt.Errorf("can not write: %s", err.Error()))
 			continue
 		}
 
@@ -257,12 +257,12 @@ func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
 				err = &CommandExecutionError{status: cc.GetStatusParameter(), op: cmd.OpCode}
 			}
 		} else {
-			err = fmt.Errorf("Received unexpected Command Complete with no status")
+			err = fmt.Errorf("received unexpected Command Complete with no status")
 		}
 		wg.Done()
 	}
 	e.fail = func(er error) {
-		err = fmt.Errorf("Command execution failed: %s", er.Error())
+		err = fmt.Errorf("command execution failed: %s", er.Error())
 		wg.Done()
 	}
 	wg.Add(1)
@@ -325,9 +325,9 @@ func (h *Host) Init() error {
 		// XXX: Deinitialize
 		var execErr *CommandExecutionError
 		if errors.As(err, &execErr) {
-			return fmt.Errorf("Unable to initialize controller: %w", execErr)
+			return fmt.Errorf("unable to initialize controller: %w", execErr)
 		}
-		return fmt.Errorf("Unable to initialize controller: %s", err.Error())
+		return fmt.Errorf("unable to initialize controller: %s", err.Error())
 	}
 
 	return nil
@@ -362,7 +362,7 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 
 	logging.Debug.Printf("Setting scan parameters")
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return nil, fmt.Errorf("Unable to set Scan Parameters: %s", err.Error())
+		return nil, fmt.Errorf("unable to set Scan Parameters: %s", err.Error())
 	}
 
 	cmd = hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
@@ -376,7 +376,7 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 
 	logging.Debug.Printf("Starting scan")
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return nil, fmt.Errorf("Unable to start scanning: %s", err.Error())
+		return nil, fmt.Errorf("unable to start scanning: %s", err.Error())
 	}
 	return h.ad, nil
 }
@@ -392,7 +392,7 @@ func (h *Host) StopScanning() error {
 	parameters[1] = 0x00
 	cmd.Parameters(parameters)
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to stop scanning: %s", err.Error())
+		return fmt.Errorf("unable to stop scanning: %s", err.Error())
 	}
 	return nil
 }
@@ -427,7 +427,7 @@ func (h *Host) SetAdvertisingParams(advParams hci.AdvertisingParameters) error {
 
 	cmd.Parameters(params)
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to set advertising parameters: %s", err.Error())
+		return fmt.Errorf("unable to set advertising parameters: %s", err.Error())
 	}
 	return nil
 }
@@ -437,7 +437,7 @@ func putAdvData(buf []byte, datas []*hci.AdStructure) (int, error) {
 	for i, ad := range datas {
 		n, err := ad.EncodeTo(buf[offset:])
 		if err != nil {
-			return 0, fmt.Errorf("Advertising Data %d could not be written (%s)", i, err.Error())
+			return 0, fmt.Errorf("advertising Data %d could not be written (%s)", i, err.Error())
 		}
 		offset += n
 	}
@@ -461,7 +461,7 @@ func (h *Host) setAdvData(data []*hci.AdStructure, scanResp bool) error {
 	cmd.Parameters(params)
 
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable set advertising data: %s", err.Error())
+		return fmt.Errorf("unable set advertising data: %s", err.Error())
 	}
 
 	return nil
@@ -488,7 +488,7 @@ func (h *Host) StartAdvertising() error {
 	params[0] = 0x01
 	cmd.Parameters(params)
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to start advertising: %s", err.Error())
+		return fmt.Errorf("unable to start advertising: %s", err.Error())
 	}
 	return nil
 }
@@ -502,7 +502,7 @@ func (h *Host) StopAdvertising() error {
 	params[0] = 0x00
 	cmd.Parameters(params)
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to start advertising: %s", err.Error())
+		return fmt.Errorf("unable to start advertising: %s", err.Error())
 	}
 	return nil
 }
@@ -510,7 +510,7 @@ func (h *Host) StopAdvertising() error {
 //SetRandomAddress sets LE Random Device Address to the Controller
 func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
 	if addr.Atype != hci.LeRandomAddress {
-		return fmt.Errorf("Invalid address type %s, expected %s",
+		return fmt.Errorf("invalid address type %s, expected %s",
 			addr.Atype.String(), hci.LeRandomAddress.String())
 	}
 	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetRandomAddress}
@@ -518,7 +518,7 @@ func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
 	addr.Put(params)
 	cmd.Parameters(params)
 	if err := h.executeStatusCommand(&cmd); err != nil {
-		return fmt.Errorf("Unable to set random address: %s", err.Error())
+		return fmt.Errorf("unable to set random address: %s", err.Error())
 	}
 	return nil
 }

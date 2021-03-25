@@ -14,7 +14,7 @@ func parseAddress(addr string) (hci.BtAddress, error) {
 	if strings.Contains(addr, ",") {
 		parts := strings.Split(addr, ",")
 		if len(parts) != 2 {
-			return hci.BtAddress{}, fmt.Errorf("Invalid address specification %q", addr)
+			return hci.BtAddress{}, fmt.Errorf("invalid address specification %q", addr)
 		}
 		parts[1] = strings.TrimSpace(parts[1])
 		switch parts[1] {
@@ -25,7 +25,7 @@ func parseAddress(addr string) (hci.BtAddress, error) {
 		case "random":
 			atype = hci.LeRandomAddress
 		default:
-			return hci.BtAddress{}, fmt.Errorf("Invalid address type %q", parts[1])
+			return hci.BtAddress{}, fmt.Errorf("invalid address type %q", parts[1])
 		}
 		addr = parts[0]
 	}
@@ -64,7 +64,7 @@ func parseByteArray(input string, length int) ([]byte, error) {
 		return nil, err
 	}
 	if length > 0 && len(bytes) != length {
-		return nil, fmt.Errorf("Expected %d bytes, got %d", length, len(bytes))
+		return nil, fmt.Errorf("expected %d bytes, got %d", length, len(bytes))
 	}
 	return bytes, nil
 }
@@ -81,7 +81,7 @@ func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
 		// Assuming the data is in BD_ADDR format
 		parts := strings.Split(data, ":")
 		if len(parts) > 6 {
-			return nil, fmt.Errorf("Invalid partial address filter %s", data)
+			return nil, fmt.Errorf("invalid partial address filter %s", data)
 		}
 		bytes = make([]byte, len(parts))
 		for i := 0; i < len(parts); i++ {
@@ -90,7 +90,7 @@ func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
 				return nil, fmt.Errorf("invalid partial address filter %s", data)
 			}
 			if len(bb) != 1 {
-				return nil, fmt.Errorf("Invalid partial address filter %s", data)
+				return nil, fmt.Errorf("invalid partial address filter %s", data)
 			}
 			bytes[i] = bb[0]
 		}
@@ -99,12 +99,12 @@ func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
 		var err error
 		bytes, err = parseByteArray(data, -1)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid partial address filter %s (%v)", data, err)
+			return nil, fmt.Errorf("invalid partial address filter %s (%v)", data, err)
 		}
 	}
 
 	if len(bytes) > 6 {
-		return nil, fmt.Errorf("Too long prefix %d bytes, max is 6", len(bytes))
+		return nil, fmt.Errorf("too long prefix %d bytes, max is 6", len(bytes))
 	}
 	return filter.ByPartialAddress(bytes), nil
 }
@@ -113,7 +113,7 @@ func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
 func parseIrkFilter(data string) (filter.AdFilter, error) {
 	bytes, err := parseByteArray(data, hci.IrkLength)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid IRK data (%v)", err)
+		return nil, fmt.Errorf("invalid IRK data (%v)", err)
 	}
 
 	// We assume here that IRK given has LSB in position 0, that is because
@@ -133,7 +133,7 @@ func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 
 	bytes, err := parseByteArray(data, -1)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid vendor specific data specification (%v)", err)
+		return nil, fmt.Errorf("invalid vendor specific data specification (%v)", err)
 	}
 	return filter.ByVendor(bytes), nil
 }
@@ -147,7 +147,7 @@ func parseAdTypeFilters(types string) (filter.AdFilter, error) {
 	for i, part := range parts {
 		data, err := parseByteArray(part, 1)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid Ad Type value %q (%v)", part, err)
+			return nil, fmt.Errorf("invalid Ad Type value %q (%v)", part, err)
 		}
 		filters[i] = filter.ByAdType(hci.AdType(data[0]))
 	}
@@ -170,15 +170,15 @@ func parseAdDataFilters(ads string) (filter.AdFilter, error) {
 func parseAdStructure(adstruct string) (hci.AdType, []byte, error) {
 	parts := strings.Split(adstruct, ",")
 	if len(parts) != 2 {
-		return 0, nil, fmt.Errorf("Expected Ad Structure as \"<type>,<data>\"")
+		return 0, nil, fmt.Errorf("expected Ad Structure as \"<type>,<data>\"")
 	}
 	typ, err := parseByteArray(parts[0], 1)
 	if err != nil {
-		return 0, nil, fmt.Errorf("Invalid Ad Structure type %s (%s)", parts[0], err.Error())
+		return 0, nil, fmt.Errorf("invalid Ad Structure type %s (%s)", parts[0], err.Error())
 	}
 	data, err := parseByteArray(parts[1], -1)
 	if err != nil {
-		return 0, nil, fmt.Errorf("Invalid value for Ad Structure data (%s)", err.Error())
+		return 0, nil, fmt.Errorf("invalid value for Ad Structure data (%s)", err.Error())
 	}
 	return hci.AdType(typ[0]), data, nil
 }

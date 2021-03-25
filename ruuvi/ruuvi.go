@@ -155,21 +155,21 @@ func Decode(data []byte) (*Data, error) {
 		data = data[2:]
 	}
 	if len(data) == 0 {
-		return nil, fmt.Errorf("Not enough data for Ruuvi data")
+		return nil, fmt.Errorf("not enough data for Ruuvi data")
 	}
 	format := data[formatOffset]
 	switch int(format) {
 	case formatV3:
 		if len(data) < v3DataLength {
-			return nil, fmt.Errorf("Expected at least %d bytes of data, got %d", v3DataLength, len(data))
+			return nil, fmt.Errorf("expected at least %d bytes of data, got %d", v3DataLength, len(data))
 		}
 		return decodeV3Data(data)
 	case formatV5:
 		if len(data) < v5DataLength {
-			return nil, fmt.Errorf("Expected at least %d bytes of data, got %d", v5DataLength, len(data))
+			return nil, fmt.Errorf("expected at least %d bytes of data, got %d", v5DataLength, len(data))
 		}
 		return decodeV5Data(data)
 	default:
-		return nil, fmt.Errorf("Ruuvi Data format %d not supported", data[formatOffset])
+		return nil, fmt.Errorf("ruuvi Data format %d not supported", data[formatOffset])
 	}
 }

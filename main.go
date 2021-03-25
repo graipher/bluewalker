@@ -93,7 +93,7 @@ func (out *output) writeAsJSON(data interface{}) error {
 	if err == nil {
 		return out.write(string(jdata))
 	}
-	return fmt.Errorf("Unable to marshal %q as JSON: %v", data, err)
+	return fmt.Errorf("unable to marshal %q as JSON: %v", data, err)
 }
 
 func outputForSocket(path string) (*output, error) {
