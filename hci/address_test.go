@@ -155,7 +155,7 @@ func TestPut(t *testing.T) {
 	buf := make([]byte, 6)
 
 	addr.Put(buf)
-	if bytes.Compare(buf, []byte{0x66, 0x55, 0x44, 0x33, 0x22, 0x11}) != 0 {
+	if !bytes.Equal(buf, []byte{0x66, 0x55, 0x44, 0x33, 0x22, 0x11}) {
 		t.Errorf("Invalid data in Put() buffer")
 	}
 }
@@ -165,7 +165,7 @@ func TestPutSmall(t *testing.T) {
 	buf := make([]byte, 3)
 
 	addr.Put(buf)
-	if bytes.Compare(buf, []byte{0x66, 0x55, 0x44}) != 0 {
+	if !bytes.Equal(buf, []byte{0x66, 0x55, 0x44}) {
 		t.Errorf("Invalid data in Put() buffer")
 	}
 }

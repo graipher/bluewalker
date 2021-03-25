@@ -569,7 +569,7 @@ func TestParseAdStructue(t *testing.T) {
 					if a.Typ != test.expected[i].Typ {
 						t.Errorf("Invalid type %v parsed, expected %v", a.Typ, test.expected[i].Typ)
 					}
-					if bytes.Compare(a.Data, test.expected[i].Data) != 0 {
+					if !bytes.Equal(a.Data, test.expected[i].Data) {
 						t.Errorf("Parsed data did not match expected data")
 					}
 				}

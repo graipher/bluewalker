@@ -21,7 +21,7 @@ func TestAh(t *testing.T) {
 	}
 
 	expected := []byte{0xaa, 0xfb, 0x0d}
-	if bytes.Compare(hash, expected) != 0 {
+	if !bytes.Equal(hash, expected) {
 		t.Errorf("Hash does not match (hash %v, expected %v", hash, expected)
 	}
 }

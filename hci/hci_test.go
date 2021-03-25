@@ -98,7 +98,7 @@ func TestEncodeAdStructure(t *testing.T) {
 					t.Errorf("Encoded length %d bytes, expected %d bytes", n, len(test.expected))
 				}
 				encoded := test.buf[0:n]
-				if bytes.Compare(encoded, test.expected) != 0 {
+				if !bytes.Equal(encoded, test.expected) {
 					t.Errorf("Encoded byte array is not expected")
 				}
 			} else {

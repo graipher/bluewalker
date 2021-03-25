@@ -668,7 +668,7 @@ func TestCommand(t *testing.T) {
 				if len(encoded) != paramStartOffset+2 {
 					t.Errorf("invalid length for parameters")
 				}
-				if bytes.Compare(encoded[paramStartOffset:], []byte{0x00, 0x00}) != 0 {
+				if !bytes.Equal(encoded[paramStartOffset:], []byte{0x00, 0x00}) {
 					t.Errorf("Unexpected parameters")
 				}
 			}},
@@ -704,7 +704,7 @@ func TestCommand(t *testing.T) {
 				// should be 0x00 by default
 				expected[13] = 0x07 // channel map
 				// policy should be 0x00
-				if bytes.Compare(expected, encoded[paramStartOffset:]) != 0 {
+				if !bytes.Equal(expected, encoded[paramStartOffset:]) {
 					t.Errorf("Unexpected parameters for command")
 				}
 			}},
@@ -747,7 +747,7 @@ func TestCommand(t *testing.T) {
 				}
 				expected := make([]byte, 31)
 				copy(expected[0:8], []byte{0x03, 0x09, 0x20, 0x00, 0x03, 0x19, 0x01, 0x02})
-				if bytes.Compare(expected, encoded[paramStartOffset+1:]) != 0 {
+				if !bytes.Equal(expected, encoded[paramStartOffset+1:]) {
 					t.Errorf("invalid parameter contents not expected")
 				}
 			}},
@@ -779,7 +779,7 @@ func TestCommand(t *testing.T) {
 				}
 				expected := make([]byte, 31)
 				copy(expected[0:8], []byte{0x03, 0x09, 0x20, 0x00, 0x03, 0x19, 0x01, 0x02})
-				if bytes.Compare(expected, encoded[paramStartOffset+1:]) != 0 {
+				if !bytes.Equal(expected, encoded[paramStartOffset+1:]) {
 					t.Errorf("invalid parameter contents not expected")
 				}
 			}},
@@ -860,8 +860,7 @@ func TestCommand(t *testing.T) {
 				if len(encoded) != paramStartOffset+6 {
 					t.Errorf("Invalid length for parameters")
 				}
-				if bytes.Compare(encoded[paramStartOffset:],
-					[]byte{0x66, 0x55, 0x44, 0x33, 0x22, 0x11}) != 0 {
+				if !bytes.Equal(encoded[paramStartOffset:], []byte{0x66, 0x55, 0x44, 0x33, 0x22, 0x11}) {
 					t.Errorf("Unexpected payload for command")
 				}
 			}},

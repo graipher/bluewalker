@@ -104,7 +104,7 @@ func (ba BtAddress) Resolve(irk []byte) bool {
 	// The localHash value is then compared with the hash value extracted
 	//from RPA. If the localHash value matches the extracted hash value,
 	//then the identity of the peer device has been resolved.
-	return bytes.Compare(localHash, hash) == 0
+	return bytes.Equal(localHash, hash)
 }
 
 //UnmarshalJSON parses the JSON encoded Bluetooth Address (as returned by
