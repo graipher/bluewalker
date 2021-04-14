@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,10 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
+	"gitlab.com/jtaimisto/bluewalker/logging"
 )
 
 // output interface defines type which can be used to output data
@@ -89,6 +92,97 @@ func outputForFile(path string) (output, error) {
 // defaultOutput returns default output to use.
 func defaultOutput() output {
 	return &outputImpl{wr: os.Stdout, humanReadable: true}
+}
+
+type sockListener struct {
+	mux   sync.Mutex
+	wg    sync.WaitGroup
+	conns list.List
+	l     net.Listener
+}
+
+func (s *sockListener) init(path string) error {
+	l, err := net.Listen("unix", path)
+	if err != nil {
+		return fmt.Errorf("unable to start listener: %v", err)
+	}
+	logging.Debug.Printf("Started listener on %s", path)
+	s.l = l
+	s.wg.Add(1)
+	go s.loop()
+	return nil
+}
+
+func (s *sockListener) loop() {
+	for {
+		c, err := s.l.Accept()
+		if err != nil {
+			logging.Debug.Printf("Error in accept: %v", err)
+			break
+		}
+		s.mux.Lock()
+		// add the new connection to list
+		s.conns.PushBack(c)
+		s.mux.Unlock()
+		logging.Debug.Printf("New connection accepted, %d active connections", s.conns.Len())
+	}
+	s.l.Close()
+	logging.Trace.Printf("sockListener loop terminating")
+	s.wg.Done()
+}
+
+func (s *sockListener) Close() error {
+	logging.Debug.Printf("Closing sockListener")
+	s.l.Close()
+	s.mux.Lock()
+	var next *list.Element
+	// Close all connections and remove them from the list
+	for e := s.conns.Front(); e != nil; e = next {
+		next = e.Next()
+		val := s.conns.Remove(e)
+		if conn, ok := val.(net.Conn); ok {
+			conn.Close()
+		} else {
+			panic("Unexpected value in connection list")
+		}
+	}
+	s.mux.Unlock()
+	// wait for the loop to terminate
+	s.wg.Wait()
+	logging.Debug.Printf("sockListener closed")
+	return nil
+}
+
+func (s *sockListener) Write(p []byte) (int, error) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	var next *list.Element
+	for e := s.conns.Front(); e != nil; e = next {
+		next = e.Next()
+		conn, ok := e.Value.(net.Conn)
+		if !ok {
+			panic("Unexpected value in connection list")
+		}
+		logging.Trace.Print("writing to client")
+		_, err := conn.Write(p)
+		if err != nil {
+			conn.Close()
+			s.conns.Remove(e)
+			logging.Debug.Printf("Error %v while writing to client, dropping connection, %d connections left", err, s.conns.Len())
+		}
+	}
+	return len(p), nil
+}
+
+// outputForListeningSocket returns output which starts listening UNIX socket on given
+// path and writes output to all connecting clients.
+func outputForListeningSocket(path string) (output, error) {
+
+	sockl := &sockListener{}
+	if err := sockl.init(path); err != nil {
+		return nil, err
+	}
+	return &outputImpl{humanReadable: false, wr: sockl, cl: sockl}, nil
 }
 
 func formatAddress(addr hci.BtAddress) string {
