@@ -2,11 +2,94 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
+	"os"
 	"strings"
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
+
+// output interface defines type which can be used to output data
+type output interface {
+	write(data string) error
+	isHumanReadable() bool
+	Close()
+	writeAsJSON(data interface{}) error
+}
+
+type outputImpl struct {
+	wr            io.Writer
+	cl            io.Closer
+	humanReadable bool
+}
+
+func (out *outputImpl) write(data string) error {
+	_, err := out.wr.Write([]byte(data))
+	return err
+}
+
+func (out *outputImpl) isHumanReadable() bool {
+	return out.humanReadable
+}
+
+func (out *outputImpl) Close() {
+	if out.cl != nil {
+		out.cl.Close()
+	}
+}
+
+// writeAsJSON marshals the given data into JSON and prints
+// the resulting string(s) using this output. If output is marked
+// as HumanReadble, the JSON is indented and printed so that it
+// is easy to read. If ouput is not HumanReadable, the json is
+// printed as a single -line where data is terminated by newline ('\n')
+func (out *outputImpl) writeAsJSON(data interface{}) error {
+	var err error
+	var jdata []byte
+	if out.isHumanReadable() {
+		jdata, err = json.MarshalIndent(data, "", "\t")
+	} else {
+		jdata, err = json.Marshal(data)
+		if err == nil {
+			jdata = []byte(string(jdata) + "\n")
+		}
+	}
+	if err == nil {
+		return out.write(string(jdata))
+	}
+	return fmt.Errorf("unable to marshal %q as JSON: %v", data, err)
+}
+
+// outputForSocket returns output which connects to given UNIX socket
+// and uses the socket for output
+func outputForSocket(path string) (output, error) {
+	unixConn, err := net.Dial("unix", path)
+	if err != nil {
+		return nil, err
+	}
+	return &outputImpl{wr: unixConn, cl: unixConn, humanReadable: false}, nil
+}
+
+// outputForFile returns output which writes the data to file with
+// given path. If path is "-", then data is written to stdout
+func outputForFile(path string) (output, error) {
+	if path == "-" {
+		return &outputImpl{wr: os.Stdout, humanReadable: false}, nil
+	}
+	fs, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+	return &outputImpl{wr: fs, cl: fs, humanReadable: false}, nil
+}
+
+// defaultOutput returns default output to use.
+func defaultOutput() output {
+	return &outputImpl{wr: os.Stdout, humanReadable: true}
+}
 
 func formatAddress(addr hci.BtAddress) string {
 	addrstr := addr.String()

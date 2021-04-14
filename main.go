@@ -3,12 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -51,72 +48,6 @@ type settings struct {
 	scanResp       string
 	randomAddr     string
 	filePath       string
-}
-
-type output struct {
-	wr            io.Writer
-	cl            io.Closer
-	humanReadable bool
-}
-
-func (out *output) write(data string) error {
-	_, err := out.wr.Write([]byte(data))
-	return err
-}
-
-func (out *output) isHumanReadable() bool {
-	return out.humanReadable
-}
-
-func (out *output) Close() {
-	if out.cl != nil {
-		out.cl.Close()
-	}
-}
-
-// writeAsJSON marshals the given data into JSON and prints
-// the resulting string(s) using this output. If output is marked
-// as HumanReadble, the JSON is indented and printed so that it
-// is easy to read. If ouput is not HumanReadable, the json is
-// printed as a single -line where data is terminated by newline ('\n')
-func (out *output) writeAsJSON(data interface{}) error {
-	var err error
-	var jdata []byte
-	if out.isHumanReadable() {
-		jdata, err = json.MarshalIndent(data, "", "\t")
-	} else {
-		jdata, err = json.Marshal(data)
-		if err == nil {
-			jdata = []byte(string(jdata) + "\n")
-		}
-	}
-	if err == nil {
-		return out.write(string(jdata))
-	}
-	return fmt.Errorf("unable to marshal %q as JSON: %v", data, err)
-}
-
-func outputForSocket(path string) (*output, error) {
-	unixConn, err := net.Dial("unix", path)
-	if err != nil {
-		return nil, err
-	}
-	return &output{wr: unixConn, cl: unixConn, humanReadable: false}, nil
-}
-
-func outputForFile(path string) (*output, error) {
-	if path == "-" {
-		return &output{wr: os.Stdout, humanReadable: false}, nil
-	}
-	fs, err := os.Create(path)
-	if err != nil {
-		return nil, err
-	}
-	return &output{wr: fs, cl: fs, humanReadable: false}, nil
-}
-
-func defaultOutput() *output {
-	return &output{wr: os.Stdout, humanReadable: true}
 }
 
 // Information about found device
@@ -173,7 +104,7 @@ func init() {
 }
 
 //print the collected information about found devices
-func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) error {
+func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out output) error {
 
 	if cmdline.json {
 		size := len(infoMap)
@@ -194,9 +125,9 @@ func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out *output) err
 	return out.write(sb.String())
 }
 
-type loopFunc func(chan *host.ScanReport, *output, chan int)
+type loopFunc func(chan *host.ScanReport, output, chan int)
 
-func ruuviOutputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
+func ruuviOutputJSON(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
 
 	return out.writeAsJSON(struct {
 		Device hci.BtAddress `json:"device"`
@@ -205,7 +136,7 @@ func ruuviOutputJSON(out *output, data *ruuvi.Data, address hci.BtAddress, rssi 
 	}{address, rssi, data})
 }
 
-func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
+func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
 	bld := new(strings.Builder)
 
 	v5data := data.Seqno != ruuvi.SeqnoNA
@@ -226,7 +157,7 @@ func ruuviOutput(out *output, data *ruuvi.Data, address hci.BtAddress, rssi int8
 }
 
 //listen for ruuvi tag advertisments and print out the decoded information
-func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
+func ruuviLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	var outputf func(*ruuvi.Data, hci.BtAddress, int8) error
 	if cmdline.json {
 		outputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
@@ -255,7 +186,7 @@ func ruuviLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
 	}
 }
 
-func observerLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
+func observerLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	var outputf func(*foundDevice) error
 	if cmdline.json {
 		outputf = func(found *foundDevice) error {
@@ -282,7 +213,7 @@ func observerLoop(reportChan chan *host.ScanReport, out *output, term chan int) 
 }
 
 //listen for incoming scan reports, collect data and print it once the channel closes
-func collectorLoop(reportChan chan *host.ScanReport, out *output, term chan int) {
+func collectorLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	collected := make(map[hci.BtAddress]*foundDevice)
 	for sr := range reportChan {
 		dev, found := collected[sr.Address]
@@ -464,7 +395,7 @@ func main() {
 		errorCritical(nil, fmt.Sprintf("Invalid duration %d", cmdline.duration))
 	}
 
-	var out *output
+	var out output
 	if cmdline.socketPath != "" {
 		if cmdline.filePath != "" {
 			errorCritical(nil, "Socket and file output can not be defined at the same time")
