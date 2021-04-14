@@ -1,6 +1,9 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
@@ -142,5 +145,58 @@ func TestDecodeAdStructure(t *testing.T) {
 		if out != test.expected {
 			t.Errorf("Expected \"%s\", got \"%s\"\n", test.expected, out)
 		}
+	}
+}
+
+func TestFileOutput(t *testing.T) {
+	dirname, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("Unable to create tmp directory: %v", err)
+	}
+	defer os.RemoveAll(dirname)
+
+	fname := filepath.Join(dirname, "out")
+	outdata := "a line\n"
+
+	o, err := outputForFile(fname)
+	if err != nil {
+		t.Errorf("Unable to create output for %s : %v", fname, err)
+	}
+
+	if o.isHumanReadable() {
+		t.Error("File output is human readable")
+	}
+
+	if e := o.write("a line\n"); e != nil {
+		t.Errorf("Can not write to output: %v", e)
+	}
+	o.Close()
+
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		t.Errorf("Unable to read file created by output: %v", err)
+	}
+	if string(data) != outdata {
+		t.Errorf("Unexpected contents \"%s\" in output file", string(data))
+	}
+
+	fname = filepath.Join(dirname, "out.json")
+	o, err = outputForFile(fname)
+	if err != nil {
+		t.Errorf("Unable to create output for %s : %v", fname, err)
+	}
+	if e := o.writeAsJSON(struct {
+		A int
+		B string
+	}{A: 1, B: "test"}); e != nil {
+		t.Errorf("Unable to write JSON output: %v", e)
+	}
+
+	data, err = ioutil.ReadFile(fname)
+	if err != nil {
+		t.Errorf("Unable to read file created by output: %v", err)
+	}
+	if string(data) != "{\"A\":1,\"B\":\"test\"}\n" {
+		t.Errorf("Unexpected contents \"%s\" in output file", string(data))
 	}
 }
