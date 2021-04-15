@@ -62,6 +62,8 @@ Usage of ./bluewalker:
         Only show devices whose vendor specific advertising data starts with given bytes
   -json
         Output data as json
+  -listen-unix string
+        Path to socket for listening incoming UNIX socket connections
   -log-trace
         Enable more verbose trace logging in addition to debugging
   -observer
@@ -292,20 +294,27 @@ Advertising....Done
 If `-json` command line option is given, bluewalker will produce JSON encoded
 output. This applies to _ruuvi_, _observer_ and _collector_ mode.
 
-When JSON data is written to UNIX socket (`-unix <path>`) or to a file
-(`-output-file <path>`), the data is written without any identation as a string
-terminated by newline (`\n`). Thus, when parsing JSON data from UNIX socket or a
-file when newline is encountered you should have received a well -formed JSON
-structure (this applies also to JSON printed to stdout if `-` was given as a
-path to `-output-file`).
+When JSON data is written to UNIX socket (`-unix <path>`, `-listen-unix <path>`)
+or to a file (`-output-file <path>`), the data is written without any identation
+as a string terminated by newline (`\n`). Thus, when parsing JSON data from UNIX
+socket or a file when newline is encountered you should have received a well
+-formed JSON structure (this applies also to JSON printed to stdout if `-` was
+given as a path to `-output-file`).
 
-If neither `-unix` of `-output-file` command line options were given, data is
-written to stdout indented.
+If none of `-unix`, `-listen-unix` or `-output-file` command line options are
+given, data is written to stdout indented.
 
 ### Writing JSON output to UNIX socket
 
 If `-unix <path>` command line option is given, the Bluewalker will try to
 connect to UNIX socket in given path and writes the JSON output to this socket.
+If remote end terminates the connection, Bluewalker stops running as well.
+
+With `-listen-unix <path>` command line option Bluewalker will create listening
+UNIX socket on given path and JSON output is written to all connected clients.
+With listening UNIX socket, the program is not terminated if all clients are
+disconnected.
+
 Note that even if `-json` command line option is not given, specifying UNIX
 socket path forces JSON output.
 
