@@ -41,6 +41,7 @@ type settings struct {
 	ruuvi          bool
 	json           bool
 	socketPath     string
+	lsocketPath    string
 	observer       bool
 	version        bool
 	broadcaster    bool
@@ -100,6 +101,7 @@ func init() {
 	flag.StringVar(&cmdline.randomAddr, "random-addr", "", "Random LE Address to set")
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 	flag.StringVar(&cmdline.filePath, "output-file", "", "Write output to given file, ('-' to indicate stdout)")
+	flag.StringVar(&cmdline.lsocketPath, "listen-unix", "", "Path to socket for listening incoming UNIX socket connections")
 
 }
 
@@ -363,7 +365,7 @@ func main() {
 		if cmdline.observer {
 			errorCritical(nil, "observer mode not available on broadcaster mode")
 		}
-		if cmdline.socketPath != "" {
+		if cmdline.socketPath != "" || cmdline.lsocketPath != "" {
 			errorCritical(nil, "No unix socket support on broadcaster mode")
 		}
 		if cmdline.filePath != "" {
@@ -400,12 +402,29 @@ func main() {
 		if cmdline.filePath != "" {
 			errorCritical(nil, "Socket and file output can not be defined at the same time")
 		}
+		if cmdline.lsocketPath != "" {
+			errorCritical(nil, "Listening and connection UNIX socket output can not be defined at the same time")
+		}
 		if !cmdline.json {
 			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
 			cmdline.json = true
 		}
 		var err error
 		out, err = outputForSocket(cmdline.socketPath)
+		if err != nil {
+			errorCritical(nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
+		}
+		defer out.Close()
+	} else if cmdline.lsocketPath != "" {
+		if cmdline.filePath != "" {
+			errorCritical(nil, "Socket and file output can not be defined at the same time")
+		}
+		if !cmdline.json {
+			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
+			cmdline.json = true
+		}
+		var err error
+		out, err = outputForListeningSocket(cmdline.lsocketPath)
 		if err != nil {
 			errorCritical(nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
 		}
