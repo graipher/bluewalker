@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
 )
@@ -198,5 +203,112 @@ func TestFileOutput(t *testing.T) {
 	}
 	if string(data) != "{\"A\":1,\"B\":\"test\"}\n" {
 		t.Errorf("Unexpected contents \"%s\" in output file", string(data))
+	}
+}
+
+func readAndCheck(rd io.Reader, expected []byte, t *testing.T) {
+
+	buf := make([]byte, len(expected))
+	if l, err := rd.Read(buf); err != nil {
+		t.Error("Unable to read data")
+	} else if l != len(expected) {
+		t.Errorf("Expected %d bytes, but did read only %d", l, len(expected))
+	} else {
+		if !bytes.Equal(buf, expected) {
+			t.Errorf("Expected 0x%s, read 0x%s", expected, buf)
+		}
+	}
+}
+
+func TestListeningSocketOutput(t *testing.T) {
+
+	tmpdir := t.TempDir()
+	sockname := filepath.Join(tmpdir, "test.sock")
+	o, err := outputForListeningSocket(sockname)
+	if err != nil {
+		t.Errorf("Unable to create listening socket output: %v", err)
+	}
+
+	c1, err := net.Dial("unix", sockname)
+	if err != nil {
+		t.Errorf("Unable to connect to listening socket: %v", err)
+	}
+	c2, err := net.Dial("unix", sockname)
+	if err != nil {
+		t.Errorf("Unable to connect 2nd socket: %v", err)
+	}
+	defer c1.Close()
+	defer c2.Close()
+
+	// give some time for the accept loop to handle incoming connections
+	time.Sleep(time.Duration(500 * time.Millisecond))
+	var testdata = "Test1\n"
+	o.write(testdata)
+
+	var conns = []net.Conn{c1, c2}
+	for _, c := range conns {
+		readAndCheck(c, []byte(testdata), t)
+	}
+
+	// close one of the clients
+	c1.Close()
+	testdata = "Test2\n"
+	o.write(testdata)
+	readAndCheck(c2, []byte(testdata), t)
+	o.Close()
+
+	if _, err := c2.Write([]byte{0x00}); err == nil {
+		t.Error("Expected c2 to be closed after closing output")
+	}
+}
+
+func TestSocketOutput(t *testing.T) {
+
+	tmpdir := t.TempDir()
+	sockname := filepath.Join(tmpdir, "test.sock")
+
+	l, err := net.Listen("unix", sockname)
+	if err != nil {
+		t.Fatalf("Unable to start listening socket: %v", err)
+	}
+	defer l.Close()
+	guard := sync.WaitGroup{}
+	var client_rd io.Reader
+	guard.Add(1)
+	go func() {
+		client, err := l.Accept()
+		if err != nil {
+			t.Errorf("Error when accepting: %v", err)
+		}
+		// indicate that client has connected
+		client_rd = client
+		guard.Done()
+	}()
+	o, err := outputForSocket(sockname)
+	if err != nil {
+		t.Fatalf("Unable to create output: %v", err)
+	}
+	defer o.Close()
+	// wait until connected
+	guard.Wait()
+	if client_rd == nil {
+		t.Fatal("Did not get Client")
+	}
+	testdata := "Test1\n"
+	o.write(testdata)
+	readAndCheck(client_rd, []byte(testdata), t)
+}
+
+func TestSocketOutputError(t *testing.T) {
+	tmpdir := t.TempDir()
+	name := filepath.Join(tmpdir, "existing.sock")
+	if _, err := os.Create(name); err != nil {
+		t.Fatalf("Can not create file: %v", err)
+	}
+	if _, err := outputForListeningSocket(name); err == nil {
+		t.Fatal("Was able to create listening socket with existing file name")
+	}
+	if _, err := outputForSocket(name); err == nil {
+		t.Fatal("Was able to connect socket to existing file")
 	}
 }
