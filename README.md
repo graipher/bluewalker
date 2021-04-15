@@ -24,7 +24,7 @@ Bluewalker can be used in four different modes:
 
 ## Installing
 
-On Linux, with go 1.14 or newer installed:
+On Linux, with go 1.15 or newer installed:
 
 ```
 $ go get gitlab.com/jtaimisto/bluewalker
