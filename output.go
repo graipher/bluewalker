@@ -123,8 +123,8 @@ func (s *sockListener) loop() {
 		s.mux.Lock()
 		// add the new connection to list
 		s.conns.PushBack(c)
-		s.mux.Unlock()
 		logging.Debug.Printf("New connection accepted, %d active connections", s.conns.Len())
+		s.mux.Unlock()
 	}
 	s.l.Close()
 	logging.Trace.Printf("sockListener loop terminating")
