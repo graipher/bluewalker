@@ -24,6 +24,7 @@ Bluewalker can be used in four different modes:
 
 ## Installing
 
+### Using go get
 On Linux, with go 1.15 or newer installed:
 
 ```
@@ -31,6 +32,20 @@ $ go get gitlab.com/jtaimisto/bluewalker
 ```
 
 This will install the binary to ~/bin by default.
+
+### Using docker
+
+If you have docker installed, you can build the bluewalker binary by running
+the `build.sh` script. The script will use `Dockerfile` to build and
+run docker image which builds bluewalker binary. The resulting binary is
+copied to the same directory where the script is run.
+
+By default `build.sh` builds Linux x86_64 binary, desired architecture can
+be given to `build.sh` as a parameter. Thus to build Linux ARM binary, for
+example for Raspberry Pi devices, run
+```
+$ ./build.sh arm
+```
 
 ## Usage
 
