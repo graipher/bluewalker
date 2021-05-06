@@ -1,3 +1,26 @@
+v0.2.5 (2020-05-06)
+
+ * Bluewalker can now detect if Bluetooth device does not support Bluetooth LE
+   and give proper eror message to user.
+
+ * Added timeout to HCI command execution. This ensures bluewalker does not get
+   stuck waiting for response if, for whatever reason, the response never
+   arrives. Currently waits 30sec for the response.
+
+ * Decoding of manufacturer -specific data was improved, the company identifier
+   is printed, if one can be resolved from the identifier in data.
+
+ * There were minor changes to the way default, human readable, output is
+   printed. No changes to JSON formats
+
+ * Add support for running bluewalker in output mode where it creates listening
+   UNIX socket (-listen-unix) and writes JSON data to all connected clients.
+   In this mode the program is not terminated when clients disconnect.
+
+ * Added Dockerfile and build.sh script which can be used to build bluewalker
+   without having go installed.
+
+
 v0.2.4 (2020-08-05)
 
  * Implement decoding for Exposure Notification Service Data used by
