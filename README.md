@@ -398,6 +398,7 @@ data is received in format 3, these fields are set to "Not Available" values.
                 "type": "LE Random"
         },
         "rssi": -40,
+        "time": "2021-07-16T12:56:17.319636631+03:00",
         "sensors": {
                 "humidity": 23.8375,
                 "temperature": 23.449999,
@@ -419,6 +420,7 @@ data is received in format 3, these fields are set to "Not Available" values.
 | device:address        | Bluetooth address as string                           |
 | device:type           | Bluetooth address type (`LE Public`, `LE Random`)     |
 | rssi                  | RSSI value from the received advertising event (int)  |
+| time                  | Time when the event was received (string)             |
 | sensors               | Values for all the ruuvi tag sensors                  |
 | sensors:humidity      | Humidity value (float)                                |
 | sensors:temperature   | Temperature in C (float)                              |
