@@ -134,8 +134,9 @@ func ruuviOutputJSON(out output, data *ruuvi.Data, address hci.BtAddress, rssi i
 	return out.writeAsJSON(struct {
 		Device hci.BtAddress `json:"device"`
 		Rssi   int8          `json:"rssi"`
+		Time   time.Time     `json:"time"`
 		Values *ruuvi.Data   `json:"sensors"`
-	}{address, rssi, data})
+	}{address, rssi, time.Now(), data})
 }
 
 func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
