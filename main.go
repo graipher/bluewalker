@@ -276,6 +276,39 @@ func errorCritical(host *host.Host, message string) {
 	os.Exit(255)
 }
 
+//table containing parsers for different filters
+// If get_param function returns non-nil value, the parser function
+// can be used to parse the filter.
+var filterTab = []struct {
+	parser    func(string) (filter.AdFilter, error)
+	get_param func() string
+}{
+	{
+		parser:    parseAddressFilters,
+		get_param: func() string { return cmdline.addrFilter },
+	},
+	{
+		parser:    parseVendorSpecFilter,
+		get_param: func() string { return cmdline.vendorFilter },
+	},
+	{
+		parser:    parseAdTypeFilters,
+		get_param: func() string { return cmdline.adTypeFilter },
+	},
+	{
+		parser:    parseAdDataFilters,
+		get_param: func() string { return cmdline.adDataFilter },
+	},
+	{
+		parser:    parseIrkFilter,
+		get_param: func() string { return cmdline.irkFilter },
+	},
+	{
+		parser:    parsePartialAddrFilter,
+		get_param: func() string { return cmdline.partAddrFilter },
+	},
+}
+
 func main() {
 
 	flag.Parse()
@@ -295,62 +328,28 @@ func main() {
 	if cmdline.trace {
 		logging.SetLogLevel(logging.TRACE)
 	}
+
+	if cmdline.ruuvi {
+		if cmdline.vendorFilter != "" {
+			errorCritical(nil, "Vendor filter not supported on ruuvi mode")
+		}
+		if cmdline.adTypeFilter != "" {
+			errorCritical(nil, "AD Type filter not supported on ruuvi mode")
+		}
+		if cmdline.adDataFilter != "" {
+			errorCritical(nil, "AD Data filter not supported on ruuvi mode")
+		}
+	}
+
 	var filters []filter.AdFilter
-	if cmdline.addrFilter != "" {
-		if filt, err := parseAddressFilters(cmdline.addrFilter); err != nil {
-			errorCritical(nil, fmt.Sprintf("%v", err))
-		} else {
+	for _, fp := range filterTab {
+		if param := fp.get_param(); param != "" {
+			filt, err := fp.parser(param)
+			if err != nil {
+				errorCritical(nil, err.Error())
+			}
 			filters = append(filters, filt)
 		}
-	}
-
-	if cmdline.vendorFilter != "" {
-		if cmdline.ruuvi {
-			errorCritical(nil, "Vendor filter not supported on Ruuvi tag mode")
-		}
-		filt, err := parseVendorSpecFilter(cmdline.vendorFilter)
-		if err != nil {
-			errorCritical(nil, fmt.Sprintf("%v", err))
-		}
-		filters = append(filters, filt)
-	}
-
-	if cmdline.adTypeFilter != "" {
-		if cmdline.ruuvi {
-			errorCritical(nil, "AD type filter not supported on Ruuvi tag mode")
-		}
-		if filt, err := parseAdTypeFilters(cmdline.adTypeFilter); err != nil {
-			errorCritical(nil, fmt.Sprintf("%v", err))
-		} else {
-			filters = append(filters, filt)
-		}
-	}
-
-	if cmdline.adDataFilter != "" {
-		if cmdline.ruuvi {
-			errorCritical(nil, "AD type filter not supported on Ruuvi tag mode")
-		}
-		if filt, err := parseAdDataFilters(cmdline.adDataFilter); err != nil {
-			errorCritical(nil, fmt.Sprintf("%v", err))
-		} else {
-			filters = append(filters, filt)
-		}
-	}
-
-	if cmdline.irkFilter != "" {
-		filt, err := parseIrkFilter(cmdline.irkFilter)
-		if err != nil {
-			errorCritical(nil, fmt.Sprintf("%v", err))
-		}
-		filters = append(filters, filt)
-	}
-
-	if cmdline.partAddrFilter != "" {
-		filt, err := parsePartialAddrFilter(cmdline.partAddrFilter)
-		if err != nil {
-			errorCritical(nil, fmt.Sprintf("%v", err))
-		}
-		filters = append(filters, filt)
 	}
 
 	if cmdline.broadcaster {
