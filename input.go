@@ -71,10 +71,7 @@ func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
 
 	var bytes []byte
 	data = strings.TrimSpace(data)
-	if strings.HasSuffix(data, ":") {
-		// remove trailing ':' first
-		data = data[0 : len(data)-1]
-	}
+	data = strings.TrimSuffix(data, ":")
 	if strings.Contains(data, ":") {
 		// Assuming the data is in BD_ADDR format
 		parts := strings.Split(data, ":")
