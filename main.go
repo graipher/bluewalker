@@ -267,11 +267,15 @@ func errorMessage(message string) {
 }
 
 //error_critical will print given error message and terminate the program
-// if host is non-nil, it will be deinitialized befor stoppping
-func errorCritical(host *host.Host, message string) {
+// if host is non-nil, it will be deinitialized before stoppping
+// if out is non-nil, the output is closed before stopping
+func errorCritical(host *host.Host, out output, message string) {
 	errorMessage(message)
 	if host != nil {
 		host.Deinit()
+	}
+	if out != nil {
+		out.Close()
 	}
 	os.Exit(255)
 }
@@ -319,7 +323,7 @@ func main() {
 	}
 
 	if cmdline.device == "" {
-		errorCritical(nil, "Missing device name")
+		errorCritical(nil, nil, "Missing device name")
 	}
 
 	if cmdline.debug {
@@ -331,13 +335,13 @@ func main() {
 
 	if cmdline.ruuvi {
 		if cmdline.vendorFilter != "" {
-			errorCritical(nil, "Vendor filter not supported on ruuvi mode")
+			errorCritical(nil, nil, "Vendor filter not supported on ruuvi mode")
 		}
 		if cmdline.adTypeFilter != "" {
-			errorCritical(nil, "AD Type filter not supported on ruuvi mode")
+			errorCritical(nil, nil, "AD Type filter not supported on ruuvi mode")
 		}
 		if cmdline.adDataFilter != "" {
-			errorCritical(nil, "AD Data filter not supported on ruuvi mode")
+			errorCritical(nil, nil, "AD Data filter not supported on ruuvi mode")
 		}
 	}
 
@@ -346,7 +350,7 @@ func main() {
 		if param := fp.get_param(); param != "" {
 			filt, err := fp.parser(param)
 			if err != nil {
-				errorCritical(nil, err.Error())
+				errorCritical(nil, nil, err.Error())
 			}
 			filters = append(filters, filt)
 		}
@@ -354,36 +358,36 @@ func main() {
 
 	if cmdline.broadcaster {
 		if len(filters) > 0 {
-			errorCritical(nil, "Filters not available on broadcaster mode")
+			errorCritical(nil, nil, "Filters not available on broadcaster mode")
 		}
 		if cmdline.ruuvi {
-			errorCritical(nil, "Ruuvi mode not available on broadcaster mode")
+			errorCritical(nil, nil, "Ruuvi mode not available on broadcaster mode")
 		}
 		if cmdline.json {
-			errorCritical(nil, "JSON output not available on broadcaster mode")
+			errorCritical(nil, nil, "JSON output not available on broadcaster mode")
 		}
 		if cmdline.observer {
-			errorCritical(nil, "observer mode not available on broadcaster mode")
+			errorCritical(nil, nil, "observer mode not available on broadcaster mode")
 		}
 		if cmdline.socketPath != "" || cmdline.lsocketPath != "" {
-			errorCritical(nil, "No unix socket support on broadcaster mode")
+			errorCritical(nil, nil, "No unix socket support on broadcaster mode")
 		}
 		if cmdline.filePath != "" {
-			errorCritical(nil, "File output not available on broadcaster mode")
+			errorCritical(nil, nil, "File output not available on broadcaster mode")
 		}
 		if cmdline.advData == "" {
-			errorCritical(nil, "No Advertising Data set")
+			errorCritical(nil, nil, "No Advertising Data set")
 		}
 	} else {
 		if cmdline.advData != "" || cmdline.scanResp != "" {
-			errorCritical(nil, "Advertising or scan response data can be set only on broadcaster mode")
+			errorCritical(nil, nil, "Advertising or scan response data can be set only on broadcaster mode")
 		}
 	}
 	var rAddr hci.BtAddress
 	if cmdline.randomAddr != "" {
 		addr, err := parseAddress(cmdline.randomAddr)
 		if err != nil {
-			errorCritical(nil, fmt.Sprintf("Could not parse random address (%v)", err))
+			errorCritical(nil, nil, fmt.Sprintf("Could not parse random address (%v)", err))
 		}
 		if addr.Atype != hci.LeRandomAddress {
 			// force the address type to be random, as we are setting the
@@ -394,16 +398,16 @@ func main() {
 	}
 
 	if cmdline.duration == 0 || cmdline.duration < -1 {
-		errorCritical(nil, fmt.Sprintf("Invalid duration %d", cmdline.duration))
+		errorCritical(nil, nil, fmt.Sprintf("Invalid duration %d", cmdline.duration))
 	}
 
 	var out output
 	if cmdline.socketPath != "" {
 		if cmdline.filePath != "" {
-			errorCritical(nil, "Socket and file output can not be defined at the same time")
+			errorCritical(nil, nil, "Socket and file output can not be defined at the same time")
 		}
 		if cmdline.lsocketPath != "" {
-			errorCritical(nil, "Listening and connection UNIX socket output can not be defined at the same time")
+			errorCritical(nil, nil, "Listening and connection UNIX socket output can not be defined at the same time")
 		}
 		if !cmdline.json {
 			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
@@ -412,12 +416,12 @@ func main() {
 		var err error
 		out, err = outputForSocket(cmdline.socketPath)
 		if err != nil {
-			errorCritical(nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
+			errorCritical(nil, nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
 		}
 		defer out.Close()
 	} else if cmdline.lsocketPath != "" {
 		if cmdline.filePath != "" {
-			errorCritical(nil, "Socket and file output can not be defined at the same time")
+			errorCritical(nil, nil, "Socket and file output can not be defined at the same time")
 		}
 		if !cmdline.json {
 			fmt.Fprintf(os.Stderr, "Forcing JSON mode when writing to socket. Use -json to silence this warning\n")
@@ -426,14 +430,14 @@ func main() {
 		var err error
 		out, err = outputForListeningSocket(cmdline.lsocketPath)
 		if err != nil {
-			errorCritical(nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
+			errorCritical(nil, nil, fmt.Sprintf("Unable to open unix socket at %s (%v)", cmdline.socketPath, err))
 		}
 		defer out.Close()
 	} else if cmdline.filePath != "" {
 		var err error
 		out, err = outputForFile(cmdline.filePath)
 		if err != nil {
-			errorCritical(nil, fmt.Sprintf("Unable to open output file %s (%v)", cmdline.filePath, err))
+			errorCritical(nil, nil, fmt.Sprintf("Unable to open output file %s (%v)", cmdline.filePath, err))
 		}
 		defer out.Close()
 	} else {
@@ -457,13 +461,13 @@ func main() {
 	var scanResp []*hci.AdStructure
 	if cmdline.broadcaster {
 		if data, err := parseAdStructures(cmdline.advData); err != nil {
-			errorCritical(nil, fmt.Sprintf("Unable to parse advertising data: %v", err))
+			errorCritical(nil, out, fmt.Sprintf("Unable to parse advertising data: %v", err))
 		} else {
 			ads = data
 		}
 		if cmdline.scanResp != "" {
 			if data, err := parseAdStructures(cmdline.scanResp); err != nil {
-				errorCritical(nil, fmt.Sprintf("Unable to parse scan response data: %v", err))
+				errorCritical(nil, out, fmt.Sprintf("Unable to parse scan response data: %v", err))
 			} else {
 				scanResp = data
 			}
@@ -476,22 +480,22 @@ func main() {
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
-		errorCritical(nil, fmt.Sprintf("Error while opening RAW HCI socket: %v\nAre you running as root and have you run sudo hciconfig %s down?", err, cmdline.device))
+		errorCritical(nil, out, fmt.Sprintf("Error while opening RAW HCI socket: %v\nAre you running as root and have you run sudo hciconfig %s down?", err, cmdline.device))
 	}
 
 	var execErr *host.CommandExecutionError
 	host := host.New(raw)
 	if err = host.Init(); err != nil {
 		if errors.As(err, &execErr) && execErr.ErrorCode() == hci.StatusUnknownCommand {
-			errorCritical(host, fmt.Sprintf("Host initialization failed. This is likely beacause %s does not support Bluetooth LE (%v)", cmdline.device, err))
+			errorCritical(host, out, fmt.Sprintf("Host initialization failed. This is likely beacause %s does not support Bluetooth LE (%v)", cmdline.device, err))
 		}
 
-		errorCritical(host, fmt.Sprintf("Unable to initialize host: %v", err))
+		errorCritical(host, out, fmt.Sprintf("Unable to initialize host: %v", err))
 	}
 
 	if cmdline.randomAddr != "" {
 		if err = host.SetRandomAddress(rAddr); err != nil {
-			errorCritical(host, fmt.Sprintf("%v", err))
+			errorCritical(host, out, fmt.Sprintf("%v", err))
 		}
 	}
 
@@ -508,7 +512,7 @@ func main() {
 			params.OwnAddrType = hci.AdvAddressRandom
 		}
 		if err := host.SetAdvertisingParams(params); err != nil {
-			errorCritical(host, fmt.Sprintf("Unable to set advertising parameters: %v", err))
+			errorCritical(host, out, fmt.Sprintf("Unable to set advertising parameters: %v", err))
 		}
 
 		bld := new(strings.Builder)
@@ -518,7 +522,7 @@ func main() {
 		}
 		out.write(bld.String())
 		if err := host.SetAdvertisingData(ads); err != nil {
-			errorCritical(host, fmt.Sprintf("Unable to set advertising data: %v", err))
+			errorCritical(host, out, fmt.Sprintf("Unable to set advertising data: %v", err))
 		}
 		if scanResp != nil {
 			bld.Reset()
@@ -528,17 +532,17 @@ func main() {
 			}
 			out.write(bld.String())
 			if err := host.SetScanResponse(scanResp); err != nil {
-				errorCritical(host, fmt.Sprintf("Unable to set scan response data: %v", err))
+				errorCritical(host, out, fmt.Sprintf("Unable to set scan response data: %v", err))
 			}
 		}
 		if err := host.StartAdvertising(); err != nil {
-			errorCritical(host, fmt.Sprintf("Unable to start advertising: %v", err))
+			errorCritical(host, out, fmt.Sprintf("Unable to start advertising: %v", err))
 		}
 		out.write("Advertising...")
 	} else {
 		reportChan, err := host.StartScanning(cmdline.active, filters)
 		if err != nil {
-			errorCritical(host, fmt.Sprintf("Unable to start scanning: %v", err))
+			errorCritical(host, out, fmt.Sprintf("Unable to start scanning: %v", err))
 		}
 
 		wg.Add(1)
