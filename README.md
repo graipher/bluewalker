@@ -21,6 +21,8 @@ Bluewalker can be used in four different modes:
   bluewalker can be used to send advertisement packets
 - [**Ruuvi**](#scanning-for-ruuvitag) mode is special mode for listening and
   printing information from Ruuvi tags.
+- [**Mijia**](#scanning-for-mijia)) mode is special mode for listening and
+  printing information from Xiaomi Mijia temperature and humidity devices.
 
 ## Installing
 
@@ -81,6 +83,8 @@ Usage of ./bluewalker:
         Path to socket for listening incoming UNIX socket connections
   -log-trace
         Enable more verbose trace logging in addition to debugging
+  -mijia
+        Scan and display information about Xiaomi Mijia devices
   -observer
         Do scanning in observer mode (display advertising packets as they are received)
   -output-file string
@@ -271,6 +275,48 @@ Advertising Data Structures:
                 Proximity Identifier: 0x8880340faa038aca857b7ee6d407eb9b, Encrypted Metadata: 0x5235e408
 ```
 
+### Scanning for Mijia
+
+Bluewalker can be used to scan for
+[Xiaomi Mijia LYWSD03MMC](https://pvvx.github.io/ATC_MiThermometer/) running
+the [custom firmware](https://github.com/pvvx/ATC_MiThermometer). To enable
+listening for mijia, start bluewalker with `-mijia` parameter.
+
+Bluewalker is able to decode information when the Mijia information is encoded
+with custom format (see
+[here for advertising formats](https://github.com/pvvx/ATC_MiThermometer#bluetooth-advertising-formats))
+
+When run in _mijia_ mode, bluewalker will display Nijia information whenever
+it receives data (no need to use `-observer` option):
+
+```
+sudo bluewalker -device hci0 -observer -mijia
+mijia device a4:c1:38:fa:e3:46, Data format:(RSSI -77 dBm)
+	UUID: 0x181a Mac: 46:e3:fa:38:c1:a4
+	Temperature: 22.38C Humidity: 30.64%  Battery voltage: 3.065V Battery level: 96%
+	Counter: 151 Flags: 5
+mijia device a4:c1:38:fa:e3:46, Data format:(RSSI -74 dBm)
+	UUID: 0x181a Mac: 46:e3:fa:38:c1:a4
+	Temperature: 22.35C Humidity: 30.61%  Battery voltage: 3.065V Battery level: 96%
+	Counter: 152 Flags: 5
+```
+
+To get the raw data you can also listen to advertisements containing Service
+Data for UUID 0x181a:
+
+
+```
+sudo bluewalker -device hci0 -observer -filter-addata 0x16,0x1a18
+Device a4:c1:38:fa:e3:46 (RSSI:-82 dBm; last seen Nov 25 08:41:54):
+Events:Connectable undirected
+Advertising Data Structures:
+	Service Data: UUID: 0x181a, Data: 0x46e3fa38c1a4bf088d0df20b5f8805
+Device a4:c1:38:fa:e3:46 (RSSI:-87 dBm; last seen Nov 25 08:41:56):
+Events:Connectable undirected
+Advertising Data Structures:
+	Service Data: UUID: 0x181a, Data: 0x46e3fa38c1a4c208a20df20b5f8905
+```
+
 ### Broadcaster mode - sending advertising packets
 
 Bluewalker can also send advertising packets instead of listening for them. Use
@@ -307,7 +353,7 @@ Advertising....Done
 ## JSON output
 
 If `-json` command line option is given, bluewalker will produce JSON encoded
-output. This applies to _ruuvi_, _observer_ and _collector_ mode.
+output. This applies to _ruuvi_, _mijia_, _observer_ and _collector_ mode.
 
 When JSON data is written to UNIX socket (`-unix <path>`, `-listen-unix <path>`)
 or to a file (`-output-file <path>`), the data is written without any identation
@@ -432,3 +478,62 @@ data is received in format 3, these fields are set to "Not Available" values.
 | sensors:txpower       | TX power level (int, 31 for "Not Available")          |
 | sensors:movementCount | Movement counter value (int, 255 for "Not Available") |
 | sensors:sequence      | Data sequence number (int, 65535 for "Not Available") |
+
+When scanning for Mijia devices, the information about Mijia device is printed
+as JSON object every time data is received. Fields are
+[described here](https://github.com/pvvx/ATC_MiThermometer#custom-format-all-data-little-endian)
+
+```
+{
+	"device": {
+		"address": "a4:c1:38:fa:e3:46",
+		"type": "LE Public"
+	},
+	"rssi": -76,
+	"time": "2021-11-26T16:40:16.74475812+02:00",
+	"sensors": {
+		"uuid": 6170,
+		"mac": [
+			70,
+			227,
+			250,
+			56,
+			193,
+			164
+		],
+		"temperature": 22.29,
+		"humidity": 29.75,
+		"voltage": 3.046,
+		"level": 94,
+		"counter": 62,
+		"flags": 5
+	}
+}
+```
+
+| JSON element          | Value                                                 |
+| --------------------- | ----------------------------------------------------- |
+| device                | Address of the Mijia device                           |
+| device:address        | Bluetooth address as string                           |
+| device:type           | Bluetooth address type (`LE Public`, `LE Random`)     |
+| rssi                  | RSSI value from the received advertising event (int)  |
+| time                  | Time when the event was received (string)             |
+| sensors               | Values for the Mijia information                      |
+| sensors:uuid          | UUID, GATT Service 0x181A Environmental Sensing       |
+| sensors:temperature   | Temperature in C (float)                              |
+| sensors:humidity      | Humidity value (float)                                |
+| sensors:voltage       | Battery voltage (float)                               |
+| sensors:counter       | Data sequence number (uint8)                          |
+| sensors:flags         | Flags for extra info per bit (uint16), in custom mode |
+
+The flags are bits, only available in custom format GPIO_TRG pin (marking
+"reset" on circuit board) flags:
+
+| Bit  | Purpose                                                           |
+| ---- | ----------------------------------------------------------------- |
+| bit0 | Reed Switch, input                                                |
+| bit1 | GPIO_TRG pin output value (pull Up/Down)                          |
+| bit2 | Output GPIO_TRG pin is controlled according to the set parameters |
+| bit3 | Temperature trigger event                                         |
+| bit4 | Humidity trigger event                                            |
+| bit5 | Protocol doesn't support flags                                    |

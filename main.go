@@ -18,6 +18,7 @@ import (
 	"gitlab.com/jtaimisto/bluewalker/host"
 	"gitlab.com/jtaimisto/bluewalker/logging"
 	"gitlab.com/jtaimisto/bluewalker/ruuvi"
+	"gitlab.com/jtaimisto/bluewalker/mijia"
 )
 
 const (
@@ -39,6 +40,7 @@ type settings struct {
 	adDataFilter   string
 	irkFilter      string
 	ruuvi          bool
+	mijia          bool
 	json           bool
 	socketPath     string
 	lsocketPath    string
@@ -92,6 +94,7 @@ func init() {
 	flag.StringVar(&cmdline.adDataFilter, "filter-addata", "", "Only show devices whose Advertising Data matches given filter (Format: \"<type>,<data>;<type>,<data>\", all values hexadecimal)")
 	flag.StringVar(&cmdline.irkFilter, "filter-irk", "", "Only show devices which can be resolved by given IRK")
 	flag.BoolVar(&cmdline.ruuvi, "ruuvi", false, "Scan and display information about found Ruuvi tags")
+	flag.BoolVar(&cmdline.mijia, "mijia", false, "Scan and display information about found mijia tags")
 	flag.BoolVar(&cmdline.json, "json", false, "Output data as json")
 	flag.StringVar(&cmdline.socketPath, "unix", "", "Unix socket path where to write results")
 	flag.BoolVar(&cmdline.observer, "observer", false, "Do scanning in observer mode (display advertising packets as they are received)")
@@ -184,6 +187,63 @@ func ruuviLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 					term <- 1
 					break
 				}
+			}
+		}
+	}
+}
+
+func mijiaOutputJSON(out output, data *mijia.Data, address hci.BtAddress, rssi int8) error {
+
+	return out.writeAsJSON(struct {
+		Device hci.BtAddress `json:"device"`
+		Rssi   int8          `json:"rssi"`
+		Time   time.Time     `json:"time"`
+		Values *mijia.Data   `json:"sensors"`
+	}{address, rssi, time.Now(), data})
+}
+
+func mijiaOutput(out output, data *mijia.Data, address hci.BtAddress, rssi int8) error {
+	bld := new(strings.Builder)
+
+	fmt.Fprintf(bld, "mijia device %s, Data format:", formatAddress(address))
+	fmt.Fprintf(bld, "(RSSI %d dBm)\n", rssi)
+	fmt.Fprintf(bld, "\tUUID: 0x%x Mac: ", data.Uuid)
+	for i := 0; i < 6; i++ {
+		fmt.Fprintf(bld, "%x", data.Mac[i])
+		if i < 5 {
+			fmt.Fprintf(bld, ":")
+		}
+	}
+	fmt.Fprintf(bld, "\n")
+	fmt.Fprintf(bld, "\tTemperature: %.2fC Humidity: %.2f%%  Battery voltage: %.3fV Battery level: %d%%\n",
+		data.Temperature, data.Humidity, data.Voltage, data.Level)
+	fmt.Fprintf(bld, "\tCounter: %d Flags: %x\n", data.Counter, data.Flags)
+	return out.write(bld.String())
+}
+
+//listen for mijia advertisments and print out the decoded information
+func mijiaLoop(reportChan chan *host.ScanReport, out output, term chan int) {
+	var outputf func(*mijia.Data, hci.BtAddress, int8) error
+	if cmdline.json {
+		outputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
+			return mijiaOutputJSON(out, data, addr, rssi)
+		}
+	} else {
+		outputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
+			return mijiaOutput(out, data, addr, rssi)
+		}
+	}
+	for sr := range reportChan {
+		for _, ads := range sr.Data {
+			mijiaData, err := mijia.Decode(ads.Data)
+			if err != nil {
+				logging.Warning.Printf("Unable to parse mijia data: %v", err)
+				continue
+			}
+			if err := outputf(mijiaData, sr.Address, sr.Rssi); err != nil {
+				errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
+				term <- 1
+				break
 			}
 		}
 	}
@@ -333,16 +393,24 @@ func main() {
 		logging.SetLogLevel(logging.TRACE)
 	}
 
-	if cmdline.ruuvi {
+	if cmdline.ruuvi || cmdline.mijia {
 		if cmdline.vendorFilter != "" {
-			errorCritical(nil, nil, "Vendor filter not supported on ruuvi mode")
+			errorCritical(nil, nil,
+				"Vendor filter not supported on ruuvi or mijia mode")
 		}
 		if cmdline.adTypeFilter != "" {
-			errorCritical(nil, nil, "AD Type filter not supported on ruuvi mode")
+			errorCritical(nil, nil,
+				"AD Type filter not supported on ruuvi or mijia mode")
 		}
 		if cmdline.adDataFilter != "" {
-			errorCritical(nil, nil, "AD Data filter not supported on ruuvi mode")
+			errorCritical(nil, nil,
+				"AD Data filter not supported on ruuvi or mijia mode")
 		}
+	}
+
+	if cmdline.ruuvi && cmdline.mijia {
+		errorCritical(nil, nil,
+			"We don't support both Mijia and Ruuvi modes at same time yet")
 	}
 
 	var filters []filter.AdFilter
@@ -362,6 +430,9 @@ func main() {
 		}
 		if cmdline.ruuvi {
 			errorCritical(nil, nil, "Ruuvi mode not available on broadcaster mode")
+		}
+		if cmdline.mijia {
+			errorCritical(nil, nil, "mijia mode not available on broadcaster mode")
 		}
 		if cmdline.json {
 			errorCritical(nil, nil, "JSON output not available on broadcaster mode")
@@ -449,6 +520,9 @@ func main() {
 	if cmdline.ruuvi {
 		filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
 		loop = ruuviLoop
+	} else if cmdline.mijia {
+		filters = append(filters, filter.ByAdData(hci.AdServiceData, []byte{0x1a, 0x18}))
+		loop = mijiaLoop
 	} else if cmdline.observer {
 		loop = observerLoop
 	} else if cmdline.broadcaster {
