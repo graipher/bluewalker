@@ -21,7 +21,7 @@ Bluewalker can be used in four different modes:
   bluewalker can be used to send advertisement packets
 - [**Ruuvi**](#scanning-for-ruuvitag) mode is special mode for listening and
   printing information from Ruuvi tags.
-- [**Mijia**](#scanning-for-mijia)) mode is special mode for listening and
+- [**Mijia**](#scanning-for-mijia) mode is special mode for listening and
   printing information from Xiaomi Mijia temperature and humidity devices.
 
 ## Installing
@@ -445,6 +445,7 @@ data is received in format 3, these fields are set to "Not Available" values.
         },
         "rssi": -40,
         "time": "2021-07-16T12:56:17.319636631+03:00",
+        "type": "ruuvi",
         "sensors": {
                 "humidity": 23.8375,
                 "temperature": 23.449999,
@@ -467,6 +468,7 @@ data is received in format 3, these fields are set to "Not Available" values.
 | device:type           | Bluetooth address type (`LE Public`, `LE Random`)     |
 | rssi                  | RSSI value from the received advertising event (int)  |
 | time                  | Time when the event was received (string)             |
+| type                  | Type field indicating type of the data: "ruuvi"       |
 | sensors               | Values for all the ruuvi tag sensors                  |
 | sensors:humidity      | Humidity value (float)                                |
 | sensors:temperature   | Temperature in C (float)                              |
@@ -491,6 +493,7 @@ as JSON object every time data is received. Fields are
 	},
 	"rssi": -76,
 	"time": "2021-11-26T16:40:16.74475812+02:00",
+      "type": "mijia",
 	"sensors": {
 		"uuid": 6170,
 		"mac": [
@@ -518,6 +521,7 @@ as JSON object every time data is received. Fields are
 | device:type           | Bluetooth address type (`LE Public`, `LE Random`)     |
 | rssi                  | RSSI value from the received advertising event (int)  |
 | time                  | Time when the event was received (string)             |
+| type                  | Type field indicating type of the data: "mijia"       |
 | sensors               | Values for the Mijia information                      |
 | sensors:uuid          | UUID, GATT Service 0x181A Environmental Sensing       |
 | sensors:temperature   | Temperature in C (float)                              |

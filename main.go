@@ -138,8 +138,9 @@ func ruuviOutputJSON(out output, data *ruuvi.Data, address hci.BtAddress, rssi i
 		Device hci.BtAddress `json:"device"`
 		Rssi   int8          `json:"rssi"`
 		Time   time.Time     `json:"time"`
+		Type   string        `json:"type"`
 		Values *ruuvi.Data   `json:"sensors"`
-	}{address, rssi, time.Now(), data})
+	}{address, rssi, time.Now(), "ruuvi", data})
 }
 
 func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8) error {
@@ -168,8 +169,9 @@ func mijiaOutputJSON(out output, data *mijia.Data, address hci.BtAddress, rssi i
 		Device hci.BtAddress `json:"device"`
 		Rssi   int8          `json:"rssi"`
 		Time   time.Time     `json:"time"`
+		Type   string        `json:"type"`
 		Values *mijia.Data   `json:"sensors"`
-	}{address, rssi, time.Now(), data})
+	}{address, rssi, time.Now(), "mijia", data})
 }
 
 func mijiaOutput(out output, data *mijia.Data, address hci.BtAddress, rssi int8) error {
