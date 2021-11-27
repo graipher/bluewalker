@@ -17,8 +17,8 @@ import (
 	"gitlab.com/jtaimisto/bluewalker/hci"
 	"gitlab.com/jtaimisto/bluewalker/host"
 	"gitlab.com/jtaimisto/bluewalker/logging"
-	"gitlab.com/jtaimisto/bluewalker/ruuvi"
 	"gitlab.com/jtaimisto/bluewalker/mijia"
+	"gitlab.com/jtaimisto/bluewalker/ruuvi"
 )
 
 const (
@@ -162,36 +162,6 @@ func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8)
 	return out.write(bld.String())
 }
 
-//listen for ruuvi tag advertisments and print out the decoded information
-func ruuviLoop(reportChan chan *host.ScanReport, out output, term chan int) {
-	var outputf func(*ruuvi.Data, hci.BtAddress, int8) error
-	if cmdline.json {
-		outputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
-			return ruuviOutputJSON(out, data, addr, rssi)
-		}
-	} else {
-		outputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
-			return ruuviOutput(out, data, addr, rssi)
-		}
-	}
-	for sr := range reportChan {
-		for _, ads := range sr.Data {
-			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
-				ruuviData, err := ruuvi.Decode(ads.Data)
-				if err != nil {
-					logging.Warning.Printf("Unable to parse ruuvi data: %v", err)
-					continue
-				}
-				if err := outputf(ruuviData, sr.Address, sr.Rssi); err != nil {
-					errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
-					term <- 1
-					break
-				}
-			}
-		}
-	}
-}
-
 func mijiaOutputJSON(out output, data *mijia.Data, address hci.BtAddress, rssi int8) error {
 
 	return out.writeAsJSON(struct {
@@ -205,7 +175,7 @@ func mijiaOutputJSON(out output, data *mijia.Data, address hci.BtAddress, rssi i
 func mijiaOutput(out output, data *mijia.Data, address hci.BtAddress, rssi int8) error {
 	bld := new(strings.Builder)
 
-	fmt.Fprintf(bld, "mijia device %s, Data format:", formatAddress(address))
+	fmt.Fprintf(bld, "Mijia device %s, Data format:", formatAddress(address))
 	fmt.Fprintf(bld, "(RSSI %d dBm)\n", rssi)
 	fmt.Fprintf(bld, "\tUUID: 0x%x Mac: ", data.Uuid)
 	for i := 0; i < 6; i++ {
@@ -221,29 +191,48 @@ func mijiaOutput(out output, data *mijia.Data, address hci.BtAddress, rssi int8)
 	return out.write(bld.String())
 }
 
-//listen for mijia advertisments and print out the decoded information
-func mijiaLoop(reportChan chan *host.ScanReport, out output, term chan int) {
-	var outputf func(*mijia.Data, hci.BtAddress, int8) error
+func sensorDecodingLoop(reportChan chan *host.ScanReport, out output, term chan int) {
+	var mijiaOutputf func(*mijia.Data, hci.BtAddress, int8) error
+	var ruuviOutputf func(*ruuvi.Data, hci.BtAddress, int8) error
 	if cmdline.json {
-		outputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
+		mijiaOutputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
 			return mijiaOutputJSON(out, data, addr, rssi)
 		}
+		ruuviOutputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
+			return ruuviOutputJSON(out, data, addr, rssi)
+		}
 	} else {
-		outputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
+		mijiaOutputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
 			return mijiaOutput(out, data, addr, rssi)
+		}
+		ruuviOutputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
+			return ruuviOutput(out, data, addr, rssi)
 		}
 	}
 	for sr := range reportChan {
 		for _, ads := range sr.Data {
-			mijiaData, err := mijia.Decode(ads.Data)
-			if err != nil {
-				logging.Warning.Printf("Unable to parse mijia data: %v", err)
-				continue
-			}
-			if err := outputf(mijiaData, sr.Address, sr.Rssi); err != nil {
-				errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
-				term <- 1
-				break
+			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
+				ruuviData, err := ruuvi.Decode(ads.Data)
+				if err != nil {
+					logging.Warning.Printf("Unable to parse ruuvi data: %v", err)
+					continue
+				}
+				if err := ruuviOutputf(ruuviData, sr.Address, sr.Rssi); err != nil {
+					errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
+					term <- 1
+					break
+				}
+			} else if ads.Typ == hci.AdServiceData && len(ads.Data) > 2 && binary.LittleEndian.Uint16(ads.Data) == 0x181a {
+				mijiaData, err := mijia.Decode(ads.Data)
+				if err != nil {
+					logging.Warning.Printf("Unable to parse mijia data: %v", err)
+					continue
+				}
+				if err := mijiaOutputf(mijiaData, sr.Address, sr.Rssi); err != nil {
+					errorMessage(fmt.Sprintf("Unable to write output (%s), terminating", err.Error()))
+					term <- 1
+					break
+				}
 			}
 		}
 	}
@@ -408,11 +397,6 @@ func main() {
 		}
 	}
 
-	if cmdline.ruuvi && cmdline.mijia {
-		errorCritical(nil, nil,
-			"We don't support both Mijia and Ruuvi modes at same time yet")
-	}
-
 	var filters []filter.AdFilter
 	for _, fp := range filterTab {
 		if param := fp.get_param(); param != "" {
@@ -517,12 +501,19 @@ func main() {
 
 	var loop loopFunc
 	termChan := make(chan int)
-	if cmdline.ruuvi {
-		filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
-		loop = ruuviLoop
-	} else if cmdline.mijia {
-		filters = append(filters, filter.ByAdData(hci.AdServiceData, []byte{0x1a, 0x18}))
-		loop = mijiaLoop
+	if cmdline.ruuvi || cmdline.mijia {
+		loop = sensorDecodingLoop
+		if cmdline.mijia && cmdline.ruuvi {
+			filters = append(filters,
+				filter.Any([]filter.AdFilter{
+					filter.ByVendor([]byte{0x99, 0x04}),
+					filter.ByAdData(hci.AdServiceData, []byte{0x1a, 0x18}),
+				}))
+		} else if cmdline.ruuvi {
+			filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
+		} else if cmdline.mijia {
+			filters = append(filters, filter.ByAdData(hci.AdServiceData, []byte{0x1a, 0x18}))
+		}
 	} else if cmdline.observer {
 		loop = observerLoop
 	} else if cmdline.broadcaster {
