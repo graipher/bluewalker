@@ -27,6 +27,7 @@ Bluewalker can be used in four different modes:
 ## Installing
 
 ### Using go get
+
 On Linux, with go 1.15 or newer installed:
 
 ```
@@ -37,14 +38,15 @@ This will install the binary to ~/bin by default.
 
 ### Using docker
 
-If you have docker installed, you can build the bluewalker binary by running
-the `build.sh` script. The script will use `Dockerfile` to build and
-run docker image which builds bluewalker binary. The resulting binary is
-copied to the same directory where the script is run.
+If you have docker installed, you can build the bluewalker binary by running the
+`build.sh` script. The script will use `Dockerfile` to build and run docker
+image which builds bluewalker binary. The resulting binary is copied to the same
+directory where the script is run.
 
-By default `build.sh` builds Linux x86_64 binary, desired architecture can
-be given to `build.sh` as a parameter. Thus to build Linux ARM binary, for
-example for Raspberry Pi devices, run
+By default `build.sh` builds Linux x86_64 binary, desired architecture can be
+given to `build.sh` as a parameter. Thus to build Linux ARM binary, for example
+for Raspberry Pi devices, run
+
 ```
 $ ./build.sh arm
 ```
@@ -278,16 +280,16 @@ Advertising Data Structures:
 ### Scanning for Mijia
 
 Bluewalker can be used to scan for
-[Xiaomi Mijia LYWSD03MMC](https://pvvx.github.io/ATC_MiThermometer/) running
-the [custom firmware](https://github.com/pvvx/ATC_MiThermometer). To enable
+[Xiaomi Mijia LYWSD03MMC](https://pvvx.github.io/ATC_MiThermometer/) running the
+[custom firmware](https://github.com/pvvx/ATC_MiThermometer). To enable
 listening for mijia, start bluewalker with `-mijia` parameter.
 
 Bluewalker is able to decode information when the Mijia information is encoded
 with custom format (see
 [here for advertising formats](https://github.com/pvvx/ATC_MiThermometer#bluetooth-advertising-formats))
 
-When run in _mijia_ mode, bluewalker will display Nijia information whenever
-it receives data (no need to use `-observer` option):
+When run in _mijia_ mode, bluewalker will display Nijia information whenever it
+receives data (no need to use `-observer` option):
 
 ```
 sudo bluewalker -device hci0 -observer -mijia
@@ -303,7 +305,6 @@ mijia device a4:c1:38:fa:e3:46, Data format:(RSSI -74 dBm)
 
 To get the raw data you can also listen to advertisements containing Service
 Data for UUID 0x181a:
-
 
 ```
 sudo bluewalker -device hci0 -observer -filter-addata 0x16,0x1a18
@@ -514,21 +515,21 @@ as JSON object every time data is received. Fields are
 }
 ```
 
-| JSON element          | Value                                                 |
-| --------------------- | ----------------------------------------------------- |
-| device                | Address of the Mijia device                           |
-| device:address        | Bluetooth address as string                           |
-| device:type           | Bluetooth address type (`LE Public`, `LE Random`)     |
-| rssi                  | RSSI value from the received advertising event (int)  |
-| time                  | Time when the event was received (string)             |
-| type                  | Type field indicating type of the data: "mijia"       |
-| sensors               | Values for the Mijia information                      |
-| sensors:uuid          | UUID, GATT Service 0x181A Environmental Sensing       |
-| sensors:temperature   | Temperature in C (float)                              |
-| sensors:humidity      | Humidity value (float)                                |
-| sensors:voltage       | Battery voltage (float)                               |
-| sensors:counter       | Data sequence number (uint8)                          |
-| sensors:flags         | Flags for extra info per bit (uint16), in custom mode |
+| JSON element        | Value                                                 |
+| ------------------- | ----------------------------------------------------- |
+| device              | Address of the Mijia device                           |
+| device:address      | Bluetooth address as string                           |
+| device:type         | Bluetooth address type (`LE Public`, `LE Random`)     |
+| rssi                | RSSI value from the received advertising event (int)  |
+| time                | Time when the event was received (string)             |
+| type                | Type field indicating type of the data: "mijia"       |
+| sensors             | Values for the Mijia information                      |
+| sensors:uuid        | UUID, GATT Service 0x181A Environmental Sensing       |
+| sensors:temperature | Temperature in C (float)                              |
+| sensors:humidity    | Humidity value (float)                                |
+| sensors:voltage     | Battery voltage (float)                               |
+| sensors:counter     | Data sequence number (uint8)                          |
+| sensors:flags       | Flags for extra info per bit (uint16), in custom mode |
 
 The flags are bits, only available in custom format GPIO_TRG pin (marking
 "reset" on circuit board) flags:
