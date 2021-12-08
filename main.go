@@ -547,14 +547,16 @@ func main() {
 
 	raw, err := hci.Raw(cmdline.device)
 	if err != nil {
-		errorCritical(nil, out, fmt.Sprintf("Error while opening RAW HCI socket: %v\nAre you running as root and have you run sudo hciconfig %s down?", err, cmdline.device))
+		errorCritical(nil, out, fmt.Sprintf("Error while opening RAW HCI socket: %v\n"+
+			"Are you running as root and have you run sudo btmgmt --index %s power off?", err, cmdline.device))
 	}
 
 	var execErr *host.CommandExecutionError
 	host := host.New(raw)
 	if err = host.Init(); err != nil {
 		if errors.As(err, &execErr) && execErr.ErrorCode() == hci.StatusUnknownCommand {
-			errorCritical(host, out, fmt.Sprintf("Host initialization failed. This is likely beacause %s does not support Bluetooth LE (%v)", cmdline.device, err))
+			errorCritical(host, out, fmt.Sprintf("Host initialization failed. "+
+				"This is likely beacause %s does not support Bluetooth LE (%v)", cmdline.device, err))
 		}
 
 		errorCritical(host, out, fmt.Sprintf("Unable to initialize host: %v", err))

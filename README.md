@@ -104,12 +104,12 @@ Usage of ./bluewalker:
 ```
 
 Bluewalker needs the name of Bluetooth device to use as parameter. Available
-Bluetooth devices can be viewed with `hciconfig` command. The selected hci
+Bluetooth devices can be viewed with `btmgmt info` command. The selected hci
 device needs to be down for Bluewalker to be able to use it. Use
-`sudo hciconfig <hcidevice> down` to close selected device. Then Bluewalker can
-be started using `sudo bluewalker -device <hcidevice>`. Bluewalker needs to be
-run as root (or have `cap_net_admin` capability) to be able to access the raw
-HCI device.
+`sudo btmgmt --index <hcidevice> power off` to close selected device. Then
+Bluewalker can be started using `sudo bluewalker -device <hcidevice>`.
+Bluewalker needs to be run as root (or have `cap_net_admin` capability) to be
+able to access the raw HCI device.
 
 ### Collector -mode
 
