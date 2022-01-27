@@ -1,4 +1,20 @@
-v0.2.5 (2020-05-06)
+v0.3.0 (2022-01-27)
+
+  * Fixed an issue where UNIX socket created by Bluewalker was not removed
+    when Bluewalker exited.
+
+  * Support for reading information advertised by Xiami Mijia sensors running
+    custom firmware (https://github.com/pvvx/ATC_MiThermometer) was added by
+    Ilkka Tengvall (@ikkeT)
+
+  * Ruuvi and Mijia JSON output now include "Time" -field with timestamp when
+    the advertising data was received.
+
+  * Ruuvi and Mijia JSON ouput include "Type" -field indicating for which type
+    of sensor the data is for.
+
+
+v0.2.5 (2021-05-06)
 
  * Bluewalker can now detect if Bluetooth device does not support Bluetooth LE
    and give proper eror message to user.
