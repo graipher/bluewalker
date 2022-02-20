@@ -99,6 +99,42 @@ var unmarshallTests = []unmarshallTest{
 			Voltage: 2795, TxPower: 4, MoveCount: 198, Seqno: 63626,
 		},
 	},
+	{
+		"Vector 4 - v5 doc: valid data",
+		"0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F",
+		&Data{
+			Temperature: 24.3, Humidity: 53.489998, Pressure: 100044,
+			AccelerationX: 0.004, AccelerationY: -0.004, AccelerationZ: 1.036,
+			Voltage: 2977, TxPower: 4, MoveCount: 66, Seqno: 205,
+		},
+	},
+	{
+		"Vector 5 - v5 doc: maximum values",
+		"057FFFFFFEFFFE7FFF7FFF7FFFFFDEFEFFFECBB8334C884F",
+		&Data{
+			Temperature: 163.83499, Humidity: 163.83499, Pressure: 115534,
+			AccelerationX: 32.767, AccelerationY: 32.767, AccelerationZ: 32.767,
+			Voltage: 3646, TxPower: 20, MoveCount: 254, Seqno: 65534,
+		},
+	},
+	{
+		"Vector 6 - v5 doc: minimum values",
+		"058001000000008001800180010000000000CBB8334C884F",
+		&Data{
+			Temperature: -163.83499, Humidity: 0, Pressure: 50000,
+			AccelerationX: -32.767, AccelerationY: -32.767, AccelerationZ: -32.767,
+			Voltage: 1600, TxPower: -40, MoveCount: 0, Seqno: 0,
+		},
+	},
+	{
+		"Vector 7 - v5 doc: invalid values",
+		"058000FFFFFFFF800080008000FFFFFFFFFFFFFFFFFFFFFF",
+		&Data{
+			Temperature: TemperatureNA, Humidity: HumidityNA, Pressure: PressureNA,
+			AccelerationX: AccelerationNA, AccelerationY: AccelerationNA, AccelerationZ: AccelerationNA,
+			Voltage: VoltageNA, TxPower: TxPowerNA, MoveCount: MoveCountNA, Seqno: SeqnoNA,
+		},
+	},
 }
 
 func TestUnmarshall(t *testing.T) {
