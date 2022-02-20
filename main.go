@@ -155,8 +155,25 @@ func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8)
 		fmt.Fprintf(bld, "v3 ")
 	}
 	fmt.Fprintf(bld, "(RSSI %d dBm)\n", rssi)
-	fmt.Fprintf(bld, "\tHumidity: %.2f%% Temperature: %.2fC Pressure: %dPa Battery voltage: %dmV\n", data.Humidity, data.Temperature, data.Pressure, data.Voltage)
-	fmt.Fprintf(bld, "\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ)
+
+	fmt.Fprintf(bld, "\t")
+	if data.Humidity != ruuvi.HumidityNA {
+		fmt.Fprintf(bld, "Humidity: %.2f%% ", data.Humidity)
+	}
+	if data.Temperature != ruuvi.TemperatureNA {
+		fmt.Fprintf(bld, "Temperature: %.2fC ", data.Temperature)
+	}
+	if data.Pressure != ruuvi.PressureNA {
+		fmt.Fprintf(bld, "Pressure: %dPa ", data.Pressure)
+	}
+	if data.Voltage != ruuvi.VoltageNA {
+		fmt.Fprintf(bld, "Battery voltage: %dmV", data.Voltage)
+	}
+	fmt.Fprintf(bld, "\n")
+
+	if data.AccelerationX != ruuvi.AccelerationNA && data.AccelerationY != ruuvi.AccelerationNA && data.AccelerationZ != ruuvi.AccelerationNA {
+		fmt.Fprintf(bld, "\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ)
+	}
 	if v5data {
 		fmt.Fprintf(bld, "\tTxPower: %d dBm, Moves: %d, Seqno: %d\n", data.TxPower, data.MoveCount, data.Seqno)
 	}
