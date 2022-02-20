@@ -90,6 +90,15 @@ var unmarshallTests = []unmarshallTest{
 			Voltage: 3000, TxPower: 4, MoveCount: 100, Seqno: 1000,
 		},
 	},
+	{
+		"Vector 3 - v5 real world Ruuvi Pro",
+		"990405fcbaffffffffff8cfe70fc709576c6f88ac3ddedb16a93",
+		&Data{
+			Temperature: -4.19, Humidity: HumidityNA, Pressure: PressureNA,
+			AccelerationX: -0.116, AccelerationY: -0.4, AccelerationZ: -0.912,
+			Voltage: 2795, TxPower: 4, MoveCount: 198, Seqno: 63626,
+		},
+	},
 }
 
 func TestUnmarshall(t *testing.T) {
