@@ -111,9 +111,9 @@ func decodeV3Data(data []byte) (*Data, error) {
 
 	// Not available is signified by largest presentable number for unsigned
 	// values, smallest presentable number for signed values
-	ret.TxPower = 0x001f
-	ret.MoveCount = 0xff
-	ret.Seqno = 0xffff
+	ret.TxPower = TxPowerNA
+	ret.MoveCount = MoveCountNA
+	ret.Seqno = SeqnoNA
 
 	return ret, nil
 }

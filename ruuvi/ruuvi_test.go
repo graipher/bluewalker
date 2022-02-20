@@ -37,7 +37,7 @@ var unmarshallTests = []unmarshallTest{
 		"99040300000000000000000000000000",
 		&Data{Humidity: 0, Temperature: 0, Pressure: 50000,
 			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0, Voltage: 0,
-			TxPower: 31, MoveCount: 255, Seqno: 0xffff},
+			TxPower: TxPowerNA, MoveCount: 255, Seqno: 0xffff},
 	},
 	{
 		"Zero - v5",
@@ -52,7 +52,7 @@ var unmarshallTests = []unmarshallTest{
 		"0300000000000000000000000000",
 		&Data{Humidity: 0, Temperature: 0, Pressure: 50000,
 			AccelerationX: 0, AccelerationY: 0, AccelerationZ: 0, Voltage: 0,
-			TxPower: 31, MoveCount: 255, Seqno: 0xffff},
+			TxPower: TxPowerNA, MoveCount: 255, Seqno: 0xffff},
 	},
 	{
 		"vector1",
@@ -60,7 +60,7 @@ var unmarshallTests = []unmarshallTest{
 		&Data{
 			Humidity: 64, Temperature: -1.69, Pressure: 101325,
 			AccelerationX: -1, AccelerationY: 1, AccelerationZ: -1,
-			Voltage: 3600, TxPower: 31, MoveCount: 255, Seqno: 0xffff,
+			Voltage: 3600, TxPower: TxPowerNA, MoveCount: 255, Seqno: 0xffff,
 		},
 	},
 	{
@@ -69,7 +69,7 @@ var unmarshallTests = []unmarshallTest{
 		&Data{
 			Humidity: 64, Temperature: 1.69, Pressure: 101325,
 			AccelerationX: -1, AccelerationY: 1, AccelerationZ: -1.001,
-			Voltage: 3600, TxPower: 31, MoveCount: 255, Seqno: 0xffff,
+			Voltage: 3600, TxPower: TxPowerNA, MoveCount: 255, Seqno: 0xffff,
 		},
 	},
 	{
