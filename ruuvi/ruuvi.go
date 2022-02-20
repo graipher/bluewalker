@@ -1,3 +1,9 @@
+// Package ruuvi implements parsing for the vendor specific data sent by
+// Ruuvi tag. See https://github.com/ruuvi/ruuvi-sensor-protocols for details
+// of Ruuvi data protocols.
+//
+// This package supports protocol specifications for dataformats
+// version 3 (RAWv1) and 5 (RAWv2).
 package ruuvi
 
 import (
