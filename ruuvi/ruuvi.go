@@ -34,22 +34,40 @@ const (
 	formatV5 int = 5
 )
 
-//"Not available" values for data fields available only in Ruuvi tag data format 5
-//If Data is parsed from data format v3 the relevant fields are set to these
-//values
+// Values returned for Invalid / Not available" values.
+//
+// If Ruuvi tag does not have a sensor or data is not available, the following
+// values are returned.
 const (
-	TxPowerNA   int = 31
+	// TemperatureNA indicates temperature is invalid or not available.
+	TemperatureNA float32 = -163.84 // 0x8000
+	// PressureNA indicates pressure is invalid or not available.
+	PressureNA int = 115535 // 65535
+	// HumidityNA indicates humidity is invalid or not available.
+	HumidityNA float32 = 163.8375 // 65535
+	// VoltageNA indicates voltage is invalid or not available.
+	VoltageNA int = 3647 // 2047
+	// AccelerationNA indicates acceleration is invalid or not available.
+	AccelerationNA float32 = -32.768 // 0x8000
+	// TxPowerNA indicates transmit power is invalid or not available.
+	TxPowerNA int = 22 // 31
+	// MoveCountNA indicates movement counter is invalid or not available.
 	MoveCountNA int = 255
-	SeqnoNA     int = 0xffff
+	// SeqnoNA indicates sequence number is invalid or not available.
+	SeqnoNA int = 0xffff
 )
 
-//Data contains measurement information parsed from the vendor specific
-//data sent by Ruuvi tag
-//If data is decoded from Ruuvi tag data version 3, the TxPower, MoveCount
-//and Seqno fields are set to TxPowerNA, MoveCountNA and SeqnoNA, respectively
-//as they are only available in Ruuvi Data format 5.
-//See https://github.com/ruuvi/ruuvi-sensor-protocols for details of Ruuvi
-//data protocols
+// Data contains measurement information parsed from the vendor specific
+// data sent by Ruuvi tag. See
+// https://github.com/ruuvi/ruuvi-sensor-protocols for details of Ruuvi
+// data protocols.
+//
+// If Ruuvi tag does not have a sensor or data is not available, the following
+// values are returned accordingly: TemperatureNA, PressureNA, HumidityNA,
+// VoltageNA, AccelerationNA, TxPowerNA, MoveCountNA, SeqnoNA.
+//
+// Ruuvi tag data protocol version 3 does not contain the TxPower, MoveCount
+// or Seqno. Some models of Ruuvi tag may not contain all sensors.
 type Data struct {
 	Humidity      float32 `json:"humidity"`
 	Temperature   float32 `json:"temperature"`
