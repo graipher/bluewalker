@@ -157,21 +157,21 @@ func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8)
 	fmt.Fprintf(bld, "(RSSI %d dBm)\n", rssi)
 
 	fmt.Fprintf(bld, "\t")
-	if data.Humidity != ruuvi.HumidityNA {
+	if data.HumidityValid() {
 		fmt.Fprintf(bld, "Humidity: %.2f%% ", data.Humidity)
 	}
-	if data.Temperature != ruuvi.TemperatureNA {
+	if data.TemperatureValid() {
 		fmt.Fprintf(bld, "Temperature: %.2fC ", data.Temperature)
 	}
-	if data.Pressure != ruuvi.PressureNA {
+	if data.PressureValid() {
 		fmt.Fprintf(bld, "Pressure: %dPa ", data.Pressure)
 	}
-	if data.Voltage != ruuvi.VoltageNA {
+	if data.VoltageValid() {
 		fmt.Fprintf(bld, "Battery voltage: %dmV", data.Voltage)
 	}
 	fmt.Fprintf(bld, "\n")
 
-	if data.AccelerationX != ruuvi.AccelerationNA && data.AccelerationY != ruuvi.AccelerationNA && data.AccelerationZ != ruuvi.AccelerationNA {
+	if data.AccelerationValid() {
 		fmt.Fprintf(bld, "\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ)
 	}
 	if v5data {

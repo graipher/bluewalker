@@ -88,6 +88,44 @@ type Data struct {
 	Seqno     int `json:"sequence"`
 }
 
+// TemperatureValid is true when Temperature is valid.
+func (d Data) TemperatureValid() bool { return d.Temperature != TemperatureNA }
+
+// PressureValid is true when Pressure is valid.
+func (d Data) PressureValid() bool { return d.Pressure != PressureNA }
+
+// HumidityValid is true when Humidity is valid.
+func (d Data) HumidityValid() bool { return d.Humidity != HumidityNA }
+
+// VoltageValid is true when Voltage is valid.
+func (d Data) VoltageValid() bool { return d.Voltage != VoltageNA }
+
+// TxPowerValid is true when TxPower is valid.
+func (d Data) TxPowerValid() bool { return d.TxPower != TxPowerNA }
+
+// MoveCountValid is true when MoveCount is valid.
+func (d Data) MoveCountValid() bool { return d.MoveCount != MoveCountNA }
+
+// SeqnoValid is true when Seqno is valid.
+func (d Data) SeqnoValid() bool { return d.Seqno != SeqnoNA }
+
+// AccelerationValid is true when AccelerationX, AccelerationY and AccelerationZ
+// are valid.
+func (d Data) AccelerationValid() bool {
+	var valid bool
+	switch {
+	case d.AccelerationX == AccelerationNA:
+		valid = false
+	case d.AccelerationY == AccelerationNA:
+		valid = false
+	case d.AccelerationZ == AccelerationNA:
+		valid = false
+	default:
+		valid = true
+	}
+	return valid
+}
+
 func readAccl(rd *bytes.Reader) float32 {
 	var accl int16
 	binary.Read(rd, binary.BigEndian, &accl)
