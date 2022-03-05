@@ -26,12 +26,12 @@ Bluewalker can be used in four different modes:
 
 ## Installing
 
-### Using go get
+### Using go install
 
-On Linux, with go 1.15 or newer installed:
+On Linux, with go 1.16 or newer installed:
 
 ```
-$ go get gitlab.com/jtaimisto/bluewalker
+$ go install gitlab.com/jtaimisto/bluewalker@latest
 ```
 
 This will install the binary to ~/bin by default.
