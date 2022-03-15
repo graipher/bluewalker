@@ -1,4 +1,4 @@
-#!/usr/bin/env bash -eu
+#!/usr/bin/env -S bash -eu
 
 # Build bluewalker binary
 # This script should be run on the same directory where Dockerfile is
