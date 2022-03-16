@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -64,7 +65,7 @@ func TestDecodeAdStructure(t *testing.T) {
 		},
 		{ // empty flags
 			data:     hci.AdStructure{Typ: hci.AdFlags, Data: []byte{}},
-			expected: "Flags: (Invalid)",
+			expected: "Flags: <no data>",
 		},
 		{ // some flags
 			data:     hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x05}},
@@ -74,6 +75,10 @@ func TestDecodeAdStructure(t *testing.T) {
 			data:     hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x00}},
 			expected: "Flags: [00000000]",
 		},
+		{ // too much flags
+			data:     hci.AdStructure{Typ: hci.AdFlags, Data: []byte{0x00, 0x01}},
+			expected: "Flags: <invalid> Data: 0x0001",
+		},
 
 		{ // Device name
 			data:     hci.AdStructure{Typ: hci.AdCompleteLocalName, Data: []byte{'a'}},
@@ -81,11 +86,11 @@ func TestDecodeAdStructure(t *testing.T) {
 		},
 		{ // name, no data
 			data:     hci.AdStructure{Typ: hci.AdCompleteLocalName, Data: []byte{}},
-			expected: "Complete local name: Name: \"\"",
+			expected: "Complete local name: <no data>",
 		},
 		{ // device address, no data
 			data:     hci.AdStructure{Typ: hci.AdDeviceAddress, Data: []byte{}},
-			expected: "LE Bluetooth Device Address: (invalid)",
+			expected: "LE Bluetooth Device Address: <no data>",
 		},
 		{ // random device address
 			data:     hci.AdStructure{Typ: hci.AdDeviceAddress, Data: []byte{0x01, 0xd1, 0x79, 0x48, 0xf7, 0xd0, 0x55}},
@@ -94,6 +99,10 @@ func TestDecodeAdStructure(t *testing.T) {
 		{ // public device address
 			data:     hci.AdStructure{Typ: hci.AdDeviceAddress, Data: []byte{0x00, 0xad, 0xbd, 0xcf, 0x79, 0xbd, 0x54}},
 			expected: "LE Bluetooth Device Address: 54:bd:79:cf:bd:ad",
+		},
+		{ // short device address
+			data:     hci.AdStructure{Typ: hci.AdDeviceAddress, Data: []byte{0x00, 0xad, 0xbd, 0xcf}},
+			expected: "LE Bluetooth Device Address: <invalid> Data: 0x00adbdcf",
 		},
 		{ // vendor specific, valid
 			data:     hci.AdStructure{Typ: hci.AdManufacturerSpecific, Data: []byte{0x4c, 0x00, 0xaa, 0xbb}},
@@ -109,11 +118,11 @@ func TestDecodeAdStructure(t *testing.T) {
 		},
 		{ // vendor specific, not enough data
 			data:     hci.AdStructure{Typ: hci.AdManufacturerSpecific, Data: []byte{0x4c}},
-			expected: "Manufacturer Specific: 0x4c",
+			expected: "Manufacturer Specific: <invalid> Data: 0x4c",
 		},
 		{ // vendor specific, no data
 			data:     hci.AdStructure{Typ: hci.AdManufacturerSpecific, Data: []byte{}},
-			expected: "Manufacturer Specific: 0x",
+			expected: "Manufacturer Specific: <no data>",
 		},
 		{ // service data, valid
 			data:     hci.AdStructure{Typ: hci.AdServiceData, Data: []byte{0x11, 0x22, 0xaa, 0xbb}},
@@ -125,11 +134,11 @@ func TestDecodeAdStructure(t *testing.T) {
 		},
 		{ // service data, no UUID
 			data:     hci.AdStructure{Typ: hci.AdServiceData, Data: []byte{0x11}},
-			expected: "Service Data: 0x11",
+			expected: "Service Data: <invalid> Data: 0x11",
 		},
 		{ // service data, empty
 			data:     hci.AdStructure{Typ: hci.AdServiceData, Data: []byte{}},
-			expected: "Service Data: 0x",
+			expected: "Service Data: <no data>",
 		},
 		{ // service data, exposure notification
 			data:     hci.AdStructure{Typ: hci.AdServiceData, Data: []byte{0x6f, 0xfd, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x22, 0x22, 0x22, 0x22}},
@@ -185,11 +194,14 @@ func TestDecodeAdStructure(t *testing.T) {
 		},
 	}
 
-	for _, test := range testdata {
-		out := decodeAdStructure(&test.data)
-		if out != test.expected {
-			t.Errorf("Expected \"%s\", got \"%s\"\n", test.expected, out)
-		}
+	for i, test := range testdata {
+		name := fmt.Sprintf("%d-%s", i, test.data.Typ.String())
+		t.Run(name, func(t *testing.T) {
+			out := decodeAdStructure(&test.data)
+			if out != test.expected {
+				t.Errorf("Expected \"%s\", got \"%s\"\n", test.expected, out)
+			}
+		})
 	}
 }
 

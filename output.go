@@ -186,6 +186,8 @@ func outputForListeningSocket(path string) (output, error) {
 	return &outputImpl{humanReadable: false, wr: sockl, cl: sockl}, nil
 }
 
+var errInvalidData = fmt.Errorf("invalid input data for AD Structure decoding")
+
 func formatAddress(addr hci.BtAddress) string {
 	addrstr := addr.String()
 	if addr.Atype == hci.LeRandomAddress {
@@ -221,9 +223,9 @@ var flagNames = []struct {
 	{hci.AdFlagLeBrEdrHost, "LE & BR/EDR (host)"},
 }
 
-func decodeAdFlags(flags []byte) string {
+func decodeAdFlags(flags []byte) (string, error) {
 	if len(flags) != 1 {
-		return "(Invalid)"
+		return "", errInvalidData
 	}
 	str := strings.Builder{}
 	str.WriteString("[")
@@ -236,7 +238,7 @@ func decodeAdFlags(flags []byte) string {
 	}
 	str.WriteString("]")
 	if flags[0] == 0 {
-		return str.String()
+		return str.String(), nil
 	}
 	str.WriteString("(")
 	hasFlag := false
@@ -250,30 +252,30 @@ func decodeAdFlags(flags []byte) string {
 		}
 	}
 	str.WriteString(")")
-	return str.String()
+	return str.String(), nil
 }
 
-func decodeDeviceAddress(data []byte) string {
+func decodeDeviceAddress(data []byte) (string, error) {
 	if len(data) != 7 {
-		return "(invalid)"
+		return "", errInvalidData
 	}
 	addr := hci.ToBtAddress(data[1:])
 	if data[0]&0x01 == 0x01 {
 		addr.Atype = hci.LeRandomAddress
 	}
-	return formatAddress(addr)
+	return formatAddress(addr), nil
 }
 
-func decodeServiceData(data []byte) string {
+func decodeServiceData(data []byte) (string, error) {
 	// Service Data starts with 16-bit UUID followed by service data
 	// Supplement to Bluetooth Core Specification ch 1.11
 	if len(data) < 2 {
-		return fmt.Sprintf("0x%x", data)
+		return "", errInvalidData
 	}
 	sb := strings.Builder{}
 	uuid, err := uuid.Uuid16FromBytes(data[0:2])
 	if err != nil {
-		return fmt.Sprintf("0x%x", data)
+		return "", err
 	}
 
 	sb.WriteString(fmt.Sprintf("UUID: 0x%s", uuid.String()))
@@ -292,12 +294,12 @@ func decodeServiceData(data []byte) string {
 			sb.WriteString(fmt.Sprintf(", Data: 0x%x", data[2:]))
 		}
 	}
-	return sb.String()
+	return sb.String(), nil
 }
 
-func decodeVendorSpecificData(data []byte) string {
+func decodeVendorSpecificData(data []byte) (string, error) {
 	if len(data) < 2 {
-		return fmt.Sprintf("0x%x", data)
+		return "", errInvalidData
 	}
 	sb := strings.Builder{}
 	companyID := binary.LittleEndian.Uint16(data[0:2])
@@ -309,17 +311,14 @@ func decodeVendorSpecificData(data []byte) string {
 	if len(data) > 2 {
 		sb.WriteString(fmt.Sprintf(", Data: 0x%x", data[2:]))
 	}
-	return sb.String()
+	return sb.String(), nil
 }
 
-func decodeServiceUuid(data []byte, uuidlen int) string {
+func decodeServiceUuid(data []byte, uuidlen int) (string, error) {
 
 	sb := strings.Builder{}
-	if len(data) == 0 {
-		return "<no data>"
-	}
 	if len(data)%uuidlen != 0 {
-		return fmt.Sprintf("<invalid> Data: 0x%x", data)
+		return "", errInvalidData
 	}
 	entries := len(data) / uuidlen
 	if entries == 1 {
@@ -347,29 +346,29 @@ func decodeServiceUuid(data []byte, uuidlen int) string {
 		offset += uuidlen
 	}
 
-	return sb.String()
+	return sb.String(), nil
 }
 
-func decodeDeviceName(data []byte) string {
-	return fmt.Sprintf("Name: \"%s\"", string(data))
+func decodeDeviceName(data []byte) (string, error) {
+	return fmt.Sprintf("Name: \"%s\"", string(data)), nil
 }
 
-func defaultDecode(data []byte) string {
-	return fmt.Sprintf("Data: 0x%x", data)
+func defaultDecode(data []byte) (string, error) {
+	return fmt.Sprintf("Data: 0x%x", data), nil
 }
 
-func decode16bitServiceUuid(data []byte) string {
+func decode16bitServiceUuid(data []byte) (string, error) {
 	return decodeServiceUuid(data, 2)
 }
-func decode32bitServiceUuid(data []byte) string {
+func decode32bitServiceUuid(data []byte) (string, error) {
 	return decodeServiceUuid(data, 4)
 }
 
-func decode128bitServiceUuid(data []byte) string {
+func decode128bitServiceUuid(data []byte) (string, error) {
 	return decodeServiceUuid(data, 16)
 }
 
-type adDataDecodingFunc func([]byte) string
+type adDataDecodingFunc func([]byte) (string, error)
 
 var adDataDecoders = map[hci.AdType]adDataDecodingFunc{
 	hci.AdFlags:                 decodeAdFlags,
@@ -388,10 +387,16 @@ var adDataDecoders = map[hci.AdType]adDataDecodingFunc{
 
 func decodeAdStructure(ad *hci.AdStructure) string {
 
+	if len(ad.Data) == 0 {
+		return fmt.Sprintf("%s: <no data>", ad.Typ)
+	}
 	decFunc, ok := adDataDecoders[ad.Typ]
 	if !ok {
 		decFunc = defaultDecode
 	}
-	decoded := decFunc(ad.Data)
+	decoded, err := decFunc(ad.Data)
+	if err != nil {
+		return fmt.Sprintf("%s: <invalid> Data: 0x%x", ad.Typ, ad.Data)
+	}
 	return fmt.Sprintf("%s: %s", ad.Typ, decoded)
 }
