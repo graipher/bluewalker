@@ -143,6 +143,46 @@ func TestDecodeAdStructure(t *testing.T) {
 			data:     hci.AdStructure{Typ: hci.AdServiceData, Data: []byte{0x6f, 0xfd}},
 			expected: "Service Data: UUID: 0xfd6f, Exposure Notification\n\t\t(invalid data) 0x",
 		},
+		{ // 16bit service UUID (complete)
+			data:     hci.AdStructure{Typ: hci.AdComplete16BitService, Data: []byte{0xaa, 0xbb, 0xcc, 0xdd}},
+			expected: "Complete 16 Bit Service Class UUID: 2 entries: 0xbbaa 0xddcc",
+		},
+		{ // 16bit service UUID
+			data:     hci.AdStructure{Typ: hci.AdMore16BitService, Data: []byte{0xaa, 0xbb}},
+			expected: "16 Bit Service Class UUID: 1 entry: 0xbbaa",
+		},
+		{ // 32bit service UUID (complete)
+			data:     hci.AdStructure{Typ: hci.AdComplete32BitService, Data: []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xff, 0xee, 0x11, 0x22}},
+			expected: "Complete 32 Bit Service Class UUID: 2 entries: 0xddccbbaa 0x2211eeff",
+		},
+		{ // 32bit service UUID
+			data:     hci.AdStructure{Typ: hci.AdMore32BitService, Data: []byte{0xaa, 0xbb, 0xcc, 0xdd}},
+			expected: "32 Bit Service Class UUID: 1 entry: 0xddccbbaa",
+		},
+		{ // 128bit service UUID (complete)
+			data: hci.AdStructure{
+				Typ: hci.AdComplete128BitService,
+				Data: []byte{0xfc, 0x9d, 0xd0, 0xb3, 0xcb, 0x84, 0xe0, 0x84, 0x06, 0x42, 0xf3, 0xf7, 0xe2, 0xe0, 0xbf, 0xcb,
+					0xfc, 0x9d, 0xd0, 0xb3, 0xcb, 0x84, 0xe0, 0x84, 0x06, 0x42, 0xf3, 0xf7, 0xe2, 0xe0, 0xbf, 0xcc,
+				},
+			},
+			expected: "Complete 128 Bit Service Class UUID: 2 entries: cbbfe0e2-f7f3-4206-84e0-84cbb3d09dfc ccbfe0e2-f7f3-4206-84e0-84cbb3d09dfc",
+		},
+		{ // 128bit service UUID
+			data: hci.AdStructure{
+				Typ:  hci.AdMore128BitService,
+				Data: []byte{0xfc, 0x9d, 0xd0, 0xb3, 0xcb, 0x84, 0xe0, 0x84, 0x06, 0x42, 0xf3, 0xf7, 0xe2, 0xe0, 0xbf, 0xcb},
+			},
+			expected: "128 Bit Service Class UUID: 1 entry: cbbfe0e2-f7f3-4206-84e0-84cbb3d09dfc",
+		},
+		{ // service UUID, invalid data
+			data:     hci.AdStructure{Typ: hci.AdComplete16BitService, Data: []byte{0xaa, 0xbb, 0xcc}},
+			expected: "Complete 16 Bit Service Class UUID: <invalid> Data: 0xaabbcc",
+		},
+		{ // service UUID, no data
+			data:     hci.AdStructure{Typ: hci.AdComplete16BitService, Data: []byte{}},
+			expected: "Complete 16 Bit Service Class UUID: <no data>",
+		},
 	}
 
 	for _, test := range testdata {

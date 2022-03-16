@@ -13,6 +13,7 @@ import (
 
 	"gitlab.com/jtaimisto/bluewalker/hci"
 	"gitlab.com/jtaimisto/bluewalker/logging"
+	"gitlab.com/jtaimisto/bluewalker/uuid"
 )
 
 // output interface defines type which can be used to output data
@@ -270,8 +271,12 @@ func decodeServiceData(data []byte) string {
 		return fmt.Sprintf("0x%x", data)
 	}
 	sb := strings.Builder{}
-	uuid := binary.LittleEndian.Uint16(data[0:2])
-	sb.WriteString(fmt.Sprintf("UUID: 0x%.4x", uuid))
+	uuid, err := uuid.Uuid16FromBytes(data[0:2])
+	if err != nil {
+		return fmt.Sprintf("0x%x", data)
+	}
+
+	sb.WriteString(fmt.Sprintf("UUID: 0x%s", uuid.String()))
 	switch uuid {
 	case 0xfd6f:
 		// Google & Apple Exposure Notification for COVID-19
@@ -307,6 +312,44 @@ func decodeVendorSpecificData(data []byte) string {
 	return sb.String()
 }
 
+func decodeServiceUuid(data []byte, uuidlen int) string {
+
+	sb := strings.Builder{}
+	if len(data) == 0 {
+		return "<no data>"
+	}
+	if len(data)%uuidlen != 0 {
+		return fmt.Sprintf("<invalid> Data: 0x%x", data)
+	}
+	entries := len(data) / uuidlen
+	if entries == 1 {
+		sb.WriteString(fmt.Sprintf("%d entry:", entries))
+	} else {
+		sb.WriteString(fmt.Sprintf("%d entries:", entries))
+	}
+
+	offset := 0
+	for i := 0; i < entries; i++ {
+		switch uuidlen {
+		case 2:
+			uuid, _ := uuid.Uuid16FromBytes(data[offset : offset+uuidlen])
+			sb.WriteString(fmt.Sprintf(" 0x%s", uuid.String()))
+		case 4:
+			uuid, _ := uuid.Uuid32FromBytes(data[offset : offset+uuidlen])
+			sb.WriteString(fmt.Sprintf(" 0x%s", uuid.String()))
+		case 16:
+			uuid, _ := uuid.FromBytes(data[offset : offset+uuidlen])
+			sb.WriteString(fmt.Sprintf(" %s", uuid.String()))
+
+		default:
+			panic("unexpected uuid length")
+		}
+		offset += uuidlen
+	}
+
+	return sb.String()
+}
+
 func decodeDeviceName(data []byte) string {
 	return fmt.Sprintf("Name: \"%s\"", string(data))
 }
@@ -315,15 +358,32 @@ func defaultDecode(data []byte) string {
 	return fmt.Sprintf("Data: 0x%x", data)
 }
 
+func decode16bitServiceUuid(data []byte) string {
+	return decodeServiceUuid(data, 2)
+}
+func decode32bitServiceUuid(data []byte) string {
+	return decodeServiceUuid(data, 4)
+}
+
+func decode128bitServiceUuid(data []byte) string {
+	return decodeServiceUuid(data, 16)
+}
+
 type adDataDecodingFunc func([]byte) string
 
 var adDataDecoders = map[hci.AdType]adDataDecodingFunc{
-	hci.AdFlags:                decodeAdFlags,
-	hci.AdDeviceAddress:        decodeDeviceAddress,
-	hci.AdServiceData:          decodeServiceData,
-	hci.AdManufacturerSpecific: decodeVendorSpecificData,
-	hci.AdCompleteLocalName:    decodeDeviceName,
-	hci.AdShortenedLocalName:   decodeDeviceName,
+	hci.AdFlags:                 decodeAdFlags,
+	hci.AdDeviceAddress:         decodeDeviceAddress,
+	hci.AdServiceData:           decodeServiceData,
+	hci.AdManufacturerSpecific:  decodeVendorSpecificData,
+	hci.AdCompleteLocalName:     decodeDeviceName,
+	hci.AdShortenedLocalName:    decodeDeviceName,
+	hci.AdComplete16BitService:  decode16bitServiceUuid,
+	hci.AdMore16BitService:      decode16bitServiceUuid,
+	hci.AdComplete32BitService:  decode32bitServiceUuid,
+	hci.AdMore32BitService:      decode32bitServiceUuid,
+	hci.AdComplete128BitService: decode128bitServiceUuid,
+	hci.AdMore128BitService:     decode128bitServiceUuid,
 }
 
 func decodeAdStructure(ad *hci.AdStructure) string {
