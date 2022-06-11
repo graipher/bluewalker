@@ -1,3 +1,10 @@
+v0.3.1 (2022-06-11)
+
+  * Improved handling of missing measurement values for Ruuvi tags. Improves
+    support for Ruuvi Pro tags. Joonas Kuorilehto (@joneskoo)
+
+  * Bluetooth UUID handling improved. UUIDs are now properly shown on output.
+
 v0.3.0 (2022-01-27)
 
   * Fixed an issue where UNIX socket created by Bluewalker was not removed
