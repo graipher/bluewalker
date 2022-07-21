@@ -367,6 +367,12 @@ func (ad *AdStructure) EncodeTo(buf []byte) (int, error) {
 	return length + 1, nil
 }
 
+// EncodedLength returns the number of bytes needed to encode this AdStructure
+func (ad *AdStructure) EncodedLength() int {
+	// length +  type +  data
+	return len(ad.Data) + 1 + 1
+}
+
 func (ad *AdStructure) String() string {
 	return fmt.Sprintf("%s : 0x%x", ad.Typ.String(), ad.Data)
 }
