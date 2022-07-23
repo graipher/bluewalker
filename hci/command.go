@@ -90,3 +90,77 @@ func (pkt *CommandPacket) Encode() []byte {
 	copy(ret[4:], pkt.parameters)
 	return ret
 }
+
+//Encodeable can be encoded to byte array
+type Encodeable interface {
+	// EncodeTo encodes data to given byte array, returns number of
+	// bytes written or error if data could not be written.
+	EncodeTo([]byte) (int, error)
+}
+
+// CommandBuilder can be used to build HCI commands
+type CommandBuilder struct {
+	OpCode      CommandOpCode
+	parameters  []byte
+	paramOffset int
+}
+
+// NewCommandBuilder creates new CommandBuilder to build HCI command with
+// given Op Code and parameter length
+func NewCommandBuilder(op CommandOpCode, paramLen int) *CommandBuilder {
+	return &CommandBuilder{OpCode: op, parameters: make([]byte, paramLen), paramOffset: 0}
+}
+
+// AddByte adds given byte to command parameters. Panics if there is no
+// room on parameter array
+func (b *CommandBuilder) AddByte(d byte) *CommandBuilder {
+	b.parameters[b.paramOffset] = d
+	b.paramOffset += 1
+	return b
+}
+
+func (b *CommandBuilder) PutByte(offset int, d byte) *CommandBuilder {
+	b.parameters[offset] = d
+	return b
+}
+
+// AddUint16 adds given uint16 to command parameters (little endian). Panics if there is no
+// room on parameter array
+func (b *CommandBuilder) AddUint16(d uint16) *CommandBuilder {
+	le.PutUint16(b.parameters[b.paramOffset:], d)
+	b.paramOffset += 2
+	return b
+}
+
+// AddUint64 adds given uint64 to command parameters (little endian). Panics if there is no
+// room on parameter array
+func (b *CommandBuilder) AddUint64(d uint64) *CommandBuilder {
+	le.PutUint64(b.parameters[b.paramOffset:], d)
+	b.paramOffset += 8
+	return b
+}
+
+// AddEncodeable adds given Encodeable to command parameters. Panics if there is no
+// room on parameter array
+func (b *CommandBuilder) AddEncodeable(e Encodeable) *CommandBuilder {
+	l, err := e.EncodeTo(b.parameters[b.paramOffset:])
+	if err != nil {
+		panic("Unable to encode data to command")
+	}
+	b.paramOffset += l
+	return b
+}
+
+// AddBtAddress adds given BtAddress to command parameters. Panics if there is no
+// room on parameter array
+func (b *CommandBuilder) AddBtAddress(addr BtAddress) *CommandBuilder {
+	addr.Put(b.parameters[b.paramOffset:])
+	b.paramOffset += 6 // FIXME: constant
+	return b
+}
+
+// Command returns the HCI command built by builder. Builder should not be
+// used after this method has been called.
+func (b *CommandBuilder) Command() CommandPacket {
+	return CommandPacket{OpCode: b.OpCode, parameters: b.parameters}
+}

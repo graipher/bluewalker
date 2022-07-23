@@ -1,7 +1,6 @@
 package host
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
@@ -275,33 +274,29 @@ func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
 // communication with Controller. The controller is reset first.
 func (h *Host) initializeController() error {
 
-	commands := make([]*hci.CommandPacket, 4)
+	commands := make([]hci.CommandPacket, 4)
 
 	// Reset
-	commands[0] = &hci.CommandPacket{OpCode: hci.CommandReset}
+	commands[0] = hci.CommandPacket{OpCode: hci.CommandReset}
 
 	// LE Host Supported command
-	commands[1] = &hci.CommandPacket{OpCode: hci.CommandWriteLeHostSupported}
-	params := make([]byte, 2)
-	params[0] = 0x01 // LE Supported Host enabeled
-	params[1] = 0x00 // Simultaneous LE Host parameter
-	commands[1].Parameters(params)
+	commands[1] = hci.NewCommandBuilder(hci.CommandWriteLeHostSupported, 2).
+		// Le supported host enabeled
+		AddByte(0x01).
+		// Simultaneous LE Host parameter
+		AddByte(0x00).Command()
 
 	// Set Event mask
-	commands[2] = &hci.CommandPacket{OpCode: hci.CommandSetEventMask}
-	params = make([]byte, 8)
-	// Default mask, all events, we might want to optimize this
-	binary.LittleEndian.PutUint64(params, 0x3fffffffffffffff)
-	commands[2].Parameters(params)
+	commands[2] = hci.NewCommandBuilder(hci.CommandSetEventMask, 8).
+		// Default mask, all events, we might want to optimize this
+		AddUint64(0x3fffffffffffffff).Command()
 
 	// Set LE event mask
-	commands[3] = &hci.CommandPacket{OpCode: hci.CommandLeSetEventMask}
-	params = make([]byte, 8)
-	binary.LittleEndian.PutUint64(params, 0x000000000000001f)
-	commands[3].Parameters(params)
+	commands[3] = hci.NewCommandBuilder(hci.CommandLeSetEventMask, 8).
+		AddUint64(0x000000000000001f).Command()
 
 	for _, cmd := range commands {
-		if err := h.executeStatusCommand(cmd); err != nil {
+		if err := h.executeStatusCommand(&cmd); err != nil {
 			return err
 		}
 	}
@@ -342,37 +337,35 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 	if len(filters) > 0 {
 		h.filters = filter.All(filters)
 	}
-
-	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanParameters}
-	// See Bluetooth v5.0, vol 2, part E, ch 7.8.10
-	parameters := make([]byte, 7)
+	// // See Bluetooth v5.0, vol 2, part E, ch 7.8.10
+	bld := hci.NewCommandBuilder(hci.CommandLeSetScanParameters, 7)
 	if active {
 		// active scanning
-		parameters[0] = 0x01
+		bld.AddByte(0x01)
+	} else {
+		// passive scanning
+		bld.AddByte(0x00)
 	}
 	// Scan interval
-	binary.LittleEndian.PutUint16(parameters[1:], 0x0010)
-	// Scan window
-	binary.LittleEndian.PutUint16(parameters[3:], 0x0010)
-	// Own address type, public
-	parameters[5] = 0x00
-	// Filter policy
-	parameters[6] = 0x00
-	cmd.Parameters(parameters)
+	cmd := bld.AddUint16(0x0010).
+		// Scan window
+		AddUint16(0x0010).
+		// Own address type, public
+		AddByte(0x00).
+		// Filter policy
+		AddByte(0x00).Command()
 
 	logging.Debug.Printf("Setting scan parameters")
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return nil, fmt.Errorf("unable to set Scan Parameters: %s", err.Error())
 	}
 
-	cmd = hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
-	// See Bluetooth v5.0, vol 2, part E, ch 7.8.11
-	parameters = make([]byte, 2)
-	// Scan enable
-	parameters[0] = 0x01
-	// Filter duplicates
-	parameters[1] = 0x00
-	cmd.Parameters(parameters)
+	// // See Bluetooth v5.0, vol 2, part E, ch 7.8.11
+	cmd = hci.NewCommandBuilder(hci.CommandLeSetScanEnable, 2).
+		// Scan enable
+		AddByte(0x01).
+		// Filter duplicates
+		AddByte(0x00).Command()
 
 	logging.Debug.Printf("Starting scan")
 	if err := h.executeStatusCommand(&cmd); err != nil {
@@ -384,13 +377,12 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 //StopScanning stops scanning for advertising LE devices
 func (h *Host) StopScanning() error {
 
-	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetScanEnable}
-	parameters := make([]byte, 2)
-	// Scan enable
-	parameters[0] = 0x00
-	// filter duplicates
-	parameters[1] = 0x00
-	cmd.Parameters(parameters)
+	cmd := hci.NewCommandBuilder(hci.CommandLeSetScanEnable, 2).
+		// Scan enable
+		AddByte(0x00).
+		// filter duplicates
+		AddByte(0x00).
+		Command()
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to stop scanning: %s", err.Error())
 	}
@@ -401,47 +393,46 @@ func (h *Host) StopScanning() error {
 // hci.DefaultAdvParameters() can be used to get default set of parameters.
 func (h *Host) SetAdvertisingParams(advParams hci.AdvertisingParameters) error {
 
-	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetAdvParameters}
-	params := make([]byte, 15)
+	bld := hci.NewCommandBuilder(hci.CommandLeSetAdvParameters, 15).
+		// Min advertising interval
+		AddUint16(advParams.IntervalMin).
+		// Max advertising interval
+		AddUint16(advParams.IntervalMax).
+		// advertising type
+		AddByte(byte(advParams.Type)).
+		// Own Address Type
+		AddByte(byte(advParams.OwnAddrType))
 
-	// Min advertising interval
-	binary.LittleEndian.PutUint16(params[0:2], advParams.IntervalMin)
-	// Max advertising interval
-	binary.LittleEndian.PutUint16(params[2:4], advParams.IntervalMax)
-	// advertising type
-	params[4] = byte(advParams.Type)
-	// Own Address Type
-	params[5] = byte(advParams.OwnAddrType)
 	// Peer address type
 	if advParams.PeerAddress.Atype == hci.LePublicAddress {
-		params[6] = 0x00
+		bld.AddByte(0x00)
 	} else {
-		params[6] = 0x01
+		bld.AddByte(0x01)
 	}
-	// peer address
-	advParams.PeerAddress.Put(params[7:])
-	// Channel Map
-	params[13] = byte(advParams.ChannelMap)
-	// Filter policy
-	params[14] = byte(advParams.FilterPolicy)
 
-	cmd.Parameters(params)
+	// peer address
+	cmd := bld.AddBtAddress(advParams.PeerAddress).
+		// Channel Map
+		AddByte(byte(advParams.ChannelMap)).
+		// Filter policy
+		AddByte(byte(advParams.FilterPolicy)).Command()
+
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to set advertising parameters: %s", err.Error())
 	}
 	return nil
 }
 
-func putAdvData(buf []byte, datas []*hci.AdStructure) (int, error) {
-	offset := 0
-	for i, ad := range datas {
-		n, err := ad.EncodeTo(buf[offset:])
-		if err != nil {
-			return 0, fmt.Errorf("advertising Data %d could not be written (%s)", i, err.Error())
+func putAdvData(bld *hci.CommandBuilder, datas []*hci.AdStructure) (int, error) {
+	totalLength := 0
+	for _, ad := range datas {
+		totalLength += ad.EncodedLength()
+		if totalLength > 32 { // FIXME: constant
+			return totalLength, fmt.Errorf("Too many bytes of advertising data")
 		}
-		offset += n
+		bld.AddEncodeable(ad)
 	}
-	return offset, nil
+	return totalLength, nil
 }
 
 func (h *Host) setAdvData(data []*hci.AdStructure, scanResp bool) error {
@@ -451,14 +442,15 @@ func (h *Host) setAdvData(data []*hci.AdStructure, scanResp bool) error {
 	} else {
 		opcode = hci.CommandLeSetAdvData
 	}
-	cmd := hci.CommandPacket{OpCode: opcode}
-	params := make([]byte, 32)
-	len, err := putAdvData(params[1:], data)
+	bld := hci.NewCommandBuilder(opcode, 32).
+		// total length, we'll fill this later
+		AddByte(0)
+
+	len, err := putAdvData(bld, data)
 	if err != nil {
 		return err
 	}
-	params[0] = byte(len)
-	cmd.Parameters(params)
+	cmd := bld.PutByte(0, byte(len)).Command()
 
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable set advertising data: %s", err.Error())
@@ -482,11 +474,10 @@ func (h *Host) SetScanResponse(data []*hci.AdStructure) error {
 //StartAdvertising directs the controller to start sending advertisments
 func (h *Host) StartAdvertising() error {
 
-	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetAdvEnable}
-	params := make([]byte, 1)
-	// Enabled
-	params[0] = 0x01
-	cmd.Parameters(params)
+	cmd := hci.NewCommandBuilder(hci.CommandLeSetAdvEnable, 1).
+		// enabled
+		AddByte(0x01).Command()
+
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to start advertising: %s", err.Error())
 	}
@@ -496,11 +487,10 @@ func (h *Host) StartAdvertising() error {
 //StopAdvertising directs the controller to stop sending advertisments
 func (h *Host) StopAdvertising() error {
 
-	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetAdvEnable}
-	params := make([]byte, 1)
-	// Enabled
-	params[0] = 0x00
-	cmd.Parameters(params)
+	cmd := hci.NewCommandBuilder(hci.CommandLeSetAdvEnable, 1).
+		// disabled
+		AddByte(0x00).Command()
+
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to start advertising: %s", err.Error())
 	}
@@ -513,10 +503,10 @@ func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
 		return fmt.Errorf("invalid address type %s, expected %s",
 			addr.Atype.String(), hci.LeRandomAddress.String())
 	}
-	cmd := hci.CommandPacket{OpCode: hci.CommandLeSetRandomAddress}
-	params := make([]byte, 6)
-	addr.Put(params)
-	cmd.Parameters(params)
+
+	cmd := hci.NewCommandBuilder(hci.CommandLeSetRandomAddress, 6).
+		AddBtAddress(addr).Command()
+
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to set random address: %s", err.Error())
 	}
