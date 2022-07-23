@@ -64,6 +64,9 @@ type Host struct {
 	// access needs to be protected using mux as event receiving goroutine
 	// is using this to indicate it should stop.
 	closing bool
+
+	// FIXME: dummy connections store
+	connections map[hci.ConnectionHandle]hci.BtAddress
 }
 
 // New returns new host which uses given transport for communicating
@@ -78,6 +81,8 @@ func New(tr hci.Transport) *Host {
 	host.cc = make(chan *hci.CommandCompleteEvent)
 	host.ad = make(chan *ScanReport, 5)
 	host.closing = false
+
+	host.connections = make(map[hci.ConnectionHandle]hci.BtAddress)
 
 	return host
 }
@@ -149,6 +154,17 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			logging.Debug.Printf("Received Disconection Complete: %s", dc.String())
+			if dc.Status != hci.StatusSuccess {
+				logging.Warning.Printf("Disconnection did not succeed: %s", dc.Status.String())
+			} else {
+				p, found := h.connections[dc.Handle]
+				if !found {
+					logging.Warning.Printf("Could not find connection with handle %s", dc.Handle.String())
+					continue
+				}
+				logging.Debug.Printf("Peer %s disconnected", p)
+				delete(h.connections, dc.Handle)
+			}
 		case hci.EventCodeLeMeta:
 			meta, err := hci.DecodeLeMeta(evt)
 			if err != nil {
@@ -165,6 +181,7 @@ func (h *Host) eventHandler() {
 					logging.Warning.Printf("Could not parse LE Connection Complete event: %s", err.Error())
 				}
 				logging.Debug.Printf("Connection Complete: %s", ev)
+				h.connections[ev.Handle] = ev.Peer
 			}
 		default:
 			logging.Debug.Printf("Received unexpected event %s", evt.Code.String())

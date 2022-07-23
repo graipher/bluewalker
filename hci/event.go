@@ -129,9 +129,9 @@ func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
 
 // Bluetooth 5.2, vol 4, part E, 7.7.5
 type DisconnectionCompleteEvent struct {
-	status ErrorCode
-	handle ConnectionHandle
-	reason ErrorCode
+	Status ErrorCode
+	Handle ConnectionHandle
+	Reason ErrorCode
 }
 
 // DecodeDisconnectionCompleteEvent decodes disconnection complete event data
@@ -145,12 +145,12 @@ func DecodeDisconnectionComplete(ev *Event) (*DisconnectionCompleteEvent, error)
 	handle := DecodeConnectionHandle(ev.parameters[1:])
 	reason := ErrorCode(ev.parameters[3])
 
-	return &DisconnectionCompleteEvent{status: status, handle: handle, reason: reason}, nil
+	return &DisconnectionCompleteEvent{Status: status, Handle: handle, Reason: reason}, nil
 
 }
 
 func (d *DisconnectionCompleteEvent) String() string {
-	return fmt.Sprintf("[%s] disconnected, reason %s", d.handle, d.reason)
+	return fmt.Sprintf("[%s] disconnected, reason %s", d.Handle, d.Reason)
 }
 
 // SubeventCode for LE Meta Events
@@ -174,10 +174,10 @@ func (le *LeMetaEvent) GetParameters() []byte {
 
 // Bluetooth 5.2 vol 4 Part E, 7.7.65.1
 type LeConnectionCompleteEvent struct {
-	status              ErrorCode
-	handle              ConnectionHandle
-	role                LeConnectionRole
-	peer                BtAddress
+	Status              ErrorCode
+	Handle              ConnectionHandle
+	Role                LeConnectionRole
+	Peer                BtAddress
 	interval            uint16
 	latency             uint16
 	supervisionTimeout  uint16
@@ -211,10 +211,10 @@ func DecodeLeConnectionComplete(le *LeMetaEvent) (*LeConnectionCompleteEvent, er
 	timeout := binary.LittleEndian.Uint16(params[15:])
 	clock := params[17]
 
-	return &LeConnectionCompleteEvent{status: status,
-			handle:              handle,
-			role:                role,
-			peer:                addr,
+	return &LeConnectionCompleteEvent{Status: status,
+			Handle:              handle,
+			Role:                role,
+			Peer:                addr,
 			interval:            interval,
 			latency:             latency,
 			supervisionTimeout:  timeout,
@@ -224,5 +224,5 @@ func DecodeLeConnectionComplete(le *LeMetaEvent) (*LeConnectionCompleteEvent, er
 }
 
 func (c *LeConnectionCompleteEvent) String() string {
-	return fmt.Sprintf("[%s] Peer: %s", c.handle, c.peer)
+	return fmt.Sprintf("[%s] Peer: %s", c.Handle, c.Peer)
 }
