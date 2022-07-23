@@ -51,6 +51,7 @@ type settings struct {
 	scanResp       string
 	randomAddr     string
 	filePath       string
+	connectable    bool
 }
 
 // Information about found device
@@ -105,6 +106,7 @@ func init() {
 	flag.BoolVar(&cmdline.version, "version", false, "Print version number of the program")
 	flag.StringVar(&cmdline.filePath, "output-file", "", "Write output to given file, ('-' to indicate stdout)")
 	flag.StringVar(&cmdline.lsocketPath, "listen-unix", "", "Path to socket for listening incoming UNIX socket connections")
+	flag.BoolVar(&cmdline.connectable, "connectable", false, "Advertise in connectable mode (default is non-connectable)")
 
 }
 
@@ -456,6 +458,9 @@ func main() {
 		if cmdline.advData != "" || cmdline.scanResp != "" {
 			errorCritical(nil, nil, "Advertising or scan response data can be set only on broadcaster mode")
 		}
+		if cmdline.connectable {
+			errorCritical(nil, nil, "connectable applies only to broadcaster mode")
+		}
 	}
 	var rAddr hci.BtAddress
 	if cmdline.randomAddr != "" {
@@ -592,6 +597,9 @@ func main() {
 			// scan response will be set also, set advertising type to
 			// scannable
 			params.Type = hci.AdvScanInd
+		}
+		if cmdline.connectable {
+			params.Type = hci.AdvInd
 		}
 		if cmdline.randomAddr != "" {
 			// random address has been set, use that to advertise
