@@ -142,6 +142,13 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			h.cc <- cc
+		case hci.EventCodeDisconnectionComplete:
+			dc, err := hci.DecodeDisconnectionComplete(evt)
+			if err != nil {
+				logging.Warning.Printf("Received invalid Disconnection Complete: %s", err.Error())
+				continue
+			}
+			logging.Debug.Printf("Received Disconection Complete: %s", dc.String())
 		case hci.EventCodeLeMeta:
 			meta, err := hci.DecodeLeMeta(evt)
 			if err != nil {

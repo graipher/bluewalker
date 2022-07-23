@@ -14,13 +14,16 @@ type EventCode byte
 
 // Event codes for incoming HCI events
 const (
-	EventCodeCommandComplete EventCode = 0x0e
-	EventCodeCommandStatus   EventCode = 0x0f
-	EventCodeLeMeta          EventCode = 0x3e
+	EventCodeDisconnectionComplete EventCode = 0x05
+	EventCodeCommandComplete       EventCode = 0x0e
+	EventCodeCommandStatus         EventCode = 0x0f
+	EventCodeLeMeta                EventCode = 0x3e
 )
 
 func (evt EventCode) String() string {
 	switch evt {
+	case EventCodeDisconnectionComplete:
+		return "Disconnection Complete"
 	case EventCodeCommandComplete:
 		return "Command Complete"
 	case EventCodeCommandStatus:
@@ -122,6 +125,32 @@ func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
 		return nil, fmt.Errorf("not enough parameters for Le Meta Event")
 	}
 	return &LeMetaEvent{Event: *evt}, nil
+}
+
+// Bluetooth 5.2, vol 4, part E, 7.7.5
+type DisconnectionCompleteEvent struct {
+	status ErrorCode
+	handle ConnectionHandle
+	reason ErrorCode
+}
+
+// DecodeDisconnectionCompleteEvent decodes disconnection complete event data
+// from event parameters.
+func DecodeDisconnectionComplete(ev *Event) (*DisconnectionCompleteEvent, error) {
+
+	if len(ev.parameters) < 4 {
+		return nil, fmt.Errorf("invalid payload length %d, expected 4", len(ev.parameters))
+	}
+	status := ErrorCode(ev.parameters[0])
+	handle := DecodeConnectionHandle(ev.parameters[1:])
+	reason := ErrorCode(ev.parameters[3])
+
+	return &DisconnectionCompleteEvent{status: status, handle: handle, reason: reason}, nil
+
+}
+
+func (d *DisconnectionCompleteEvent) String() string {
+	return fmt.Sprintf("[%s] disconnected, reason %s", d.handle, d.reason)
 }
 
 // SubeventCode for LE Meta Events
