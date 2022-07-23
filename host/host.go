@@ -152,6 +152,12 @@ func (h *Host) eventHandler() {
 				if err := handleAdvertisingReport(h.ad, h.filters, meta.GetParameters()); err != nil {
 					logging.Warning.Printf("Error while parsing Advertising report: %s", err.Error())
 				}
+			} else if meta.GetSubeventCode() == hci.SubeventLeConnectionComplete {
+				ev, err := hci.DecodeLeConnectionComplete(meta)
+				if err != nil {
+					logging.Warning.Printf("Could not parse LE Connection Complete event: %s", err.Error())
+				}
+				logging.Debug.Printf("Connection Complete: %s", ev)
 			}
 		default:
 			logging.Debug.Printf("Received unexpected event %s", evt.Code.String())

@@ -1,6 +1,7 @@
 package hci
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -128,7 +129,8 @@ type SubeventCode byte
 
 // Subevent types for LE Meta Event
 const (
-	SubeventAdvertisingReport SubeventCode = 0x02
+	SubeventLeConnectionComplete SubeventCode = 0x01
+	SubeventAdvertisingReport    SubeventCode = 0x02
 )
 
 //GetSubeventCode return subevent code parameter value
@@ -139,4 +141,59 @@ func (le *LeMetaEvent) GetSubeventCode() SubeventCode {
 //GetParameters returns parameters in this event, subevent code is not included
 func (le *LeMetaEvent) GetParameters() []byte {
 	return le.parameters[1:]
+}
+
+// Bluetooth 5.2 vol 4 Part E, 7.7.65.1
+type LeConnectionCompleteEvent struct {
+	status              ErrorCode
+	handle              ConnectionHandle
+	role                LeConnectionRole
+	peer                BtAddress
+	interval            uint16
+	latency             uint16
+	supervisionTimeout  uint16
+	masterClockAccuracy byte
+}
+
+// DecodeLeConnectionComplete will decode LE Connection Complete event from
+// given LE Meta Event. Error is returned if event could not be parsed.
+func DecodeLeConnectionComplete(le *LeMetaEvent) (*LeConnectionCompleteEvent, error) {
+	params := le.GetParameters()
+	if len(params) < 18 {
+		return nil, fmt.Errorf("invalid payload length %d, expected 18", len(params))
+	}
+	status := ErrorCode(params[0])
+	handle := DecodeConnectionHandle(params[1:])
+	role := LeConnectionRole(params[3])
+	if role != LeConnectionRoleMaster && role != LeConnectionRoleSlave {
+		return nil, fmt.Errorf("unaexpected connection role %.2x", byte(role))
+	}
+	addr := ToBtAddress(params[5:11])
+	atype := params[4]
+	if atype == 0x00 {
+		addr.Atype = LePublicAddress
+	} else if atype == 0x01 {
+		addr.Atype = LeRandomAddress
+	} else {
+		return nil, fmt.Errorf("unexpected address type %.2x", atype)
+	}
+	interval := binary.LittleEndian.Uint16(params[11:])
+	latency := binary.LittleEndian.Uint16(params[13:])
+	timeout := binary.LittleEndian.Uint16(params[15:])
+	clock := params[17]
+
+	return &LeConnectionCompleteEvent{status: status,
+			handle:              handle,
+			role:                role,
+			peer:                addr,
+			interval:            interval,
+			latency:             latency,
+			supervisionTimeout:  timeout,
+			masterClockAccuracy: clock,
+		},
+		nil
+}
+
+func (c *LeConnectionCompleteEvent) String() string {
+	return fmt.Sprintf("[%s] Peer: %s", c.handle, c.peer)
 }
