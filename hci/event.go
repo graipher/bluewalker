@@ -76,6 +76,13 @@ const (
 	leMetaParamLength int = 1
 )
 
+type StatusEvent interface {
+	GetNumHciCommandPackets() byte
+	GetCommandOpCode() CommandOpCode
+	GetStatus() ErrorCode
+	GetEventCode() EventCode
+}
+
 // DecodeCommandComplete returns given event as CommandCompleteEvent
 // caller should check that the event is CommandCompleteEvent
 func DecodeCommandComplete(evt *Event) (*CommandCompleteEvent, error) {
@@ -95,7 +102,7 @@ func (cc *CommandCompleteEvent) GetNumHciCommandPackets() byte {
 }
 
 // GetCommandOpcode returns the opcode this command complete event was for
-func (cc *CommandCompleteEvent) GetCommandOpcode() CommandOpCode {
+func (cc *CommandCompleteEvent) GetCommandOpCode() CommandOpCode {
 	return CommandOpCode(le.Uint16(cc.parameters[1:]))
 }
 
@@ -116,6 +123,14 @@ func (cc *CommandCompleteEvent) GetStatusParameter() ErrorCode {
 	return ErrorCode(cc.parameters[3])
 }
 
+func (cc *CommandCompleteEvent) GetStatus() ErrorCode {
+	return cc.GetStatusParameter()
+}
+
+func (cc *CommandCompleteEvent) GetEventCode() EventCode {
+	return cc.Code
+}
+
 // DecodeLeMeta returns given event as Le Meta Event
 func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
 	if evt.Code != EventCodeLeMeta {
@@ -125,6 +140,38 @@ func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
 		return nil, fmt.Errorf("not enough parameters for Le Meta Event")
 	}
 	return &LeMetaEvent{Event: *evt}, nil
+}
+
+type CommandStatusEvent struct {
+	Status      ErrorCode
+	NumCommands byte
+	Command     CommandOpCode
+}
+
+func DecodeCommandStatus(evt *Event) (*CommandStatusEvent, error) {
+	if len(evt.parameters) < 4 {
+		return nil, fmt.Errorf("invalid payload length %d, expected 4", len(evt.parameters))
+	}
+	status := ErrorCode(evt.parameters[0])
+	numCommands := evt.parameters[1]
+	cmd := CommandOpCode(le.Uint16(evt.parameters[2:]))
+	return &CommandStatusEvent{Status: status, NumCommands: numCommands, Command: cmd}, nil
+}
+
+func (cs *CommandStatusEvent) GetNumHciCommandPackets() byte {
+	return cs.NumCommands
+}
+
+func (cs *CommandStatusEvent) GetCommandOpCode() CommandOpCode {
+	return cs.Command
+}
+
+func (cs *CommandStatusEvent) GetStatus() ErrorCode {
+	return cs.Status
+}
+
+func (cs *CommandStatusEvent) GetEventCode() EventCode {
+	return EventCodeCommandStatus
 }
 
 // Bluetooth 5.2, vol 4, part E, 7.7.5

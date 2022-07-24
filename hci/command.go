@@ -11,6 +11,7 @@ type CommandOpCode uint16
 
 // Opcodes for HCI Commands
 const (
+	CommandDisconnect           CommandOpCode = 0x0406
 	CommandReset                CommandOpCode = 0x0c03
 	CommandSetEventMask         CommandOpCode = 0x0c01
 	CommandWriteLeHostSupported CommandOpCode = 0x0c6d
@@ -26,6 +27,8 @@ const (
 
 func (op CommandOpCode) String() string {
 	switch op {
+	case CommandDisconnect:
+		return "Disconnect"
 	case CommandReset:
 		return "Reset"
 	case CommandLeSetEventMask:
@@ -163,4 +166,10 @@ func (b *CommandBuilder) AddBtAddress(addr BtAddress) *CommandBuilder {
 // used after this method has been called.
 func (b *CommandBuilder) Command() CommandPacket {
 	return CommandPacket{OpCode: b.OpCode, parameters: b.parameters}
+}
+
+// AddConnectionHandle adds given handle to command payload
+func (b *CommandBuilder) AddConnectionHandle(handle ConnectionHandle) *CommandBuilder {
+	b.AddUint16(uint16(handle))
+	return b
 }

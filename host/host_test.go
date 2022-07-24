@@ -66,7 +66,7 @@ func TestCommandExecSuccess(t *testing.T) {
 
 	ch := make(chan error)
 	go func(errChan chan error, t *testing.T) {
-		err := h.executeStatusCommand(&cmd)
+		err := h.executeStatusParamCommand(&cmd)
 		errChan <- err
 	}(ch, t)
 	exec := <-h.cmd
@@ -87,7 +87,7 @@ func TestCommandExecFail(t *testing.T) {
 	ch := make(chan error)
 
 	go func(errChan chan error, t *testing.T) {
-		err := h.executeStatusCommand(&cmd)
+		err := h.executeStatusParamCommand(&cmd)
 		errChan <- err
 	}(ch, t)
 	exec := <-h.cmd
@@ -117,7 +117,7 @@ func TestCommandExecFail2(t *testing.T) {
 	ch := make(chan error)
 
 	go func(errChan chan error, t *testing.T) {
-		err := h.executeStatusCommand(&cmd)
+		err := h.executeStatusParamCommand(&cmd)
 		errChan <- err
 	}(ch, t)
 	exec := <-h.cmd
@@ -143,7 +143,7 @@ func TestCommandExecWithCCWithoutStatus(t *testing.T) {
 	cc, _ := hci.DecodeCommandComplete(evt)
 
 	go func(errChan chan error) {
-		errChan <- h.executeStatusCommand(&cmd)
+		errChan <- h.executeStatusParamCommand(&cmd)
 	}(ch)
 	exec := <-h.cmd
 	exec.complete(cc)
@@ -334,7 +334,7 @@ func TestEventHandlerCC(t *testing.T) {
 	h.evt <- buf
 	cc := <-h.cc
 	close(h.evt)
-	if cc.GetCommandOpcode() != hci.CommandReset || cc.GetStatusParameter() != hci.StatusSuccess {
+	if cc.GetCommandOpCode() != hci.CommandReset || cc.GetStatus() != hci.StatusSuccess {
 		t.Errorf("Received unexpected Command Complete event")
 	}
 }
@@ -371,7 +371,7 @@ func TestEventHandlerWithInvalidEvents(t *testing.T) {
 	h.evt <- buf
 	cc := <-h.cc
 	close(h.evt)
-	if cc.GetCommandOpcode() != hci.CommandReset || cc.GetStatusParameter() != hci.StatusSuccess {
+	if cc.GetCommandOpCode() != hci.CommandReset || cc.GetStatus() != hci.StatusSuccess {
 		t.Errorf("Received unexpected Command Complete event")
 	}
 }
@@ -395,7 +395,7 @@ func TestEventHandlerWithInvalidCC(t *testing.T) {
 	h.evt <- buf
 	cc := <-h.cc
 	close(h.evt)
-	if cc.GetCommandOpcode() != hci.CommandReset || cc.GetStatusParameter() != hci.StatusSuccess {
+	if cc.GetCommandOpCode() != hci.CommandReset || cc.GetStatus() != hci.StatusSuccess {
 		t.Errorf("Received unexpected Command Complete event")
 	}
 }

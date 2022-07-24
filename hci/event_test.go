@@ -69,7 +69,7 @@ func TestDecodeCommandComplete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to decode command complete")
 	}
-	if cc.GetCommandOpcode() != CommandReset {
+	if cc.GetCommandOpCode() != CommandReset {
 		t.Errorf("Decoded invalid opcode")
 	}
 	if cc.GetNumHciCommandPackets() != 1 {
@@ -97,7 +97,7 @@ func TestCommandCompleteHasNoParamaters(t *testing.T) {
 	if err != nil {
 		t.Errorf("Was not able to decode CC with no return parameters")
 	}
-	if cc.GetCommandOpcode() != CommandReset {
+	if cc.GetCommandOpCode() != CommandReset {
 		t.Errorf("Decoded invalid opcode")
 	}
 	if cc.GetNumHciCommandPackets() != 1 {

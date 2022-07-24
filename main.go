@@ -383,6 +383,22 @@ var filterTab = []struct {
 	},
 }
 
+func indicationListener(h *host.Host) {
+
+	for ind := range h.Indications {
+
+		switch ind.Type {
+		case host.ConnectionIndication:
+			fmt.Fprintf(os.Stdout, "\tPeer %s connected, disconnecting\n", ind.Peer)
+			if err := h.Disconnect(ind.Handle); err != nil {
+				fmt.Fprintf(os.Stdout, "%v", err)
+			}
+		case host.DisconnectionIndication:
+			fmt.Fprintf(os.Stdout, "\tPeer %s disconnected\n", ind.Peer)
+		}
+	}
+}
+
 func main() {
 
 	flag.Parse()
@@ -629,10 +645,15 @@ func main() {
 				errorCritical(host, out, fmt.Sprintf("Unable to set scan response data: %v", err))
 			}
 		}
+		wg.Add(1)
+		go func() {
+			indicationListener(host)
+			wg.Done()
+		}()
 		if err := host.StartAdvertising(); err != nil {
 			errorCritical(host, out, fmt.Sprintf("Unable to start advertising: %v", err))
 		}
-		out.write("Advertising...")
+		out.write("Advertising...\n")
 	} else {
 		reportChan, err := host.StartScanning(cmdline.active, filters)
 		if err != nil {

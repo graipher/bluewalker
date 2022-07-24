@@ -21,10 +21,19 @@ var errExecutionTimeout = fmt.Errorf("command execution timed out")
 type exec struct {
 	// command to execute
 	cmd *hci.CommandPacket
-	// this function is called when execution has completed
+	// this function is called when command Complete event is received
 	complete func(*hci.CommandCompleteEvent)
+	// this function is called when Command Status event is received
+	status func(*hci.CommandStatusEvent)
 	// this is called if command can not be sent
 	fail func(error)
+	// Error from status event, if any
+	err error
+}
+
+// setError will set error status for exec
+func (e *exec) setError(err error) {
+	e.err = err
 }
 
 //ScanReport contains information about a device found on scanning
@@ -53,7 +62,7 @@ type Host struct {
 	cmd chan *exec
 	// CommandComplete events to executor
 	// Command executor will read this channel when it is waiting command to complete
-	cc chan *hci.CommandCompleteEvent
+	cc chan hci.StatusEvent
 	// Channel used to inform about received scanning data
 	// StartScanning() will return this channel and user will receive ScanReports
 	// through it.
@@ -67,6 +76,8 @@ type Host struct {
 
 	// FIXME: dummy connections store
 	connections map[hci.ConnectionHandle]hci.BtAddress
+	// FIXME: channel for indications to user
+	Indications chan Indication
 }
 
 // New returns new host which uses given transport for communicating
@@ -78,9 +89,10 @@ func New(tr hci.Transport) *Host {
 	host.filters = nil
 	host.evt = make(chan []byte, 2)
 	host.cmd = make(chan *exec)
-	host.cc = make(chan *hci.CommandCompleteEvent)
+	host.cc = make(chan hci.StatusEvent)
 	host.ad = make(chan *ScanReport, 5)
 	host.closing = false
+	host.Indications = make(chan Indication)
 
 	host.connections = make(map[hci.ConnectionHandle]hci.BtAddress)
 
@@ -147,6 +159,13 @@ func (h *Host) eventHandler() {
 				continue
 			}
 			h.cc <- cc
+		case hci.EventCodeCommandStatus:
+			cs, err := hci.DecodeCommandStatus(evt)
+			if err != nil {
+				logging.Warning.Printf("Received invalid Command Status event: %s", err.Error())
+				continue
+			}
+			h.cc <- cs
 		case hci.EventCodeDisconnectionComplete:
 			dc, err := hci.DecodeDisconnectionComplete(evt)
 			if err != nil {
@@ -164,6 +183,7 @@ func (h *Host) eventHandler() {
 				}
 				logging.Debug.Printf("Peer %s disconnected", p)
 				delete(h.connections, dc.Handle)
+				h.Indications <- Indication{Type: DisconnectionIndication, Peer: p, Handle: dc.Handle}
 			}
 		case hci.EventCodeLeMeta:
 			meta, err := hci.DecodeLeMeta(evt)
@@ -182,6 +202,7 @@ func (h *Host) eventHandler() {
 				}
 				logging.Debug.Printf("Connection Complete: %s", ev)
 				h.connections[ev.Handle] = ev.Peer
+				h.Indications <- Indication{Type: ConnectionIndication, Peer: ev.Peer, Handle: ev.Handle}
 			}
 		default:
 			logging.Debug.Printf("Received unexpected event %s", evt.Code.String())
@@ -231,11 +252,16 @@ func (h *Host) executor() {
 				}
 				numCommands = int(cc.GetNumHciCommandPackets())
 				logging.Debug.Printf("Number of HCI packets increased to %d", numCommands)
-				if !completed && cc.GetCommandOpcode() == e.cmd.OpCode {
+				if !completed && cc.GetCommandOpCode() == e.cmd.OpCode {
 					completed = true
-					e.complete(cc)
+					switch cc.GetEventCode() {
+					case hci.EventCodeCommandComplete:
+						e.complete(cc.(*hci.CommandCompleteEvent))
+					case hci.EventCodeCommandStatus:
+						e.status(cc.(*hci.CommandStatusEvent))
+					}
 				} else if !completed {
-					logging.Warning.Printf("Received unexepcted cc for %s ", cc.GetCommandOpcode().String())
+					logging.Warning.Printf("Received unexepcted cc for %s ", cc.GetCommandOpCode().String())
 				}
 			case <-execTimer.C:
 				if !completed {
@@ -269,35 +295,56 @@ func (e *CommandExecutionError) ErrorCode() hci.ErrorCode {
 	return e.status
 }
 
-// executeStatusCommand executes single HCI command which expects to have
+// executeStatusParamCommand executes single HCI command which expects to have
 // 'status' parameter in the following CommandComplete event. This status
 // is checked and error is returned command execution failed.
-func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
+func (h *Host) executeStatusParamCommand(cmd *hci.CommandPacket) error {
 
 	var wg sync.WaitGroup
-
-	var err error
-
 	e := new(exec)
 	e.cmd = cmd
 	e.complete = func(cc *hci.CommandCompleteEvent) {
 		if cc.HasReturnParameters() {
 			if cc.GetStatusParameter() != hci.StatusSuccess {
-				err = &CommandExecutionError{status: cc.GetStatusParameter(), op: cmd.OpCode}
+				e.setError(&CommandExecutionError{status: cc.GetStatusParameter(), op: cmd.OpCode})
 			}
 		} else {
-			err = fmt.Errorf("received unexpected Command Complete with no status")
+			e.setError(fmt.Errorf("received unexpected Command Complete with no status"))
 		}
 		wg.Done()
 	}
 	e.fail = func(er error) {
-		err = fmt.Errorf("command execution failed: %s", er.Error())
+		e.setError(fmt.Errorf("command execution failed: %s", er.Error()))
 		wg.Done()
 	}
 	wg.Add(1)
 	h.cmd <- e
 	wg.Wait()
-	return err
+	return e.err
+}
+
+//executeStatusCommand executes single HCI command which expectes Command Status
+//event as return event.
+func (h *Host) executeStatusCommand(cmd *hci.CommandPacket) error {
+
+	var wg sync.WaitGroup
+	e := new(exec)
+	e.cmd = cmd
+	e.status = func(cs *hci.CommandStatusEvent) {
+		if cs.GetStatus() != hci.StatusSuccess {
+			e.setError(&CommandExecutionError{status: cs.GetStatus(), op: cmd.OpCode})
+		}
+		wg.Done()
+	}
+	e.fail = func(er error) {
+		e.setError(fmt.Errorf("command execution failed: %s", er.Error()))
+		wg.Done()
+	}
+	wg.Add(1)
+	h.cmd <- e
+	wg.Wait()
+	return e.err
+
 }
 
 // initializeController sends the necessary commands to initialize
@@ -326,7 +373,7 @@ func (h *Host) initializeController() error {
 		AddUint64(0x000000000000001f).Command()
 
 	for _, cmd := range commands {
-		if err := h.executeStatusCommand(&cmd); err != nil {
+		if err := h.executeStatusParamCommand(&cmd); err != nil {
 			return err
 		}
 	}
@@ -386,7 +433,7 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 		AddByte(0x00).Command()
 
 	logging.Debug.Printf("Setting scan parameters")
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return nil, fmt.Errorf("unable to set Scan Parameters: %s", err.Error())
 	}
 
@@ -398,7 +445,7 @@ func (h *Host) StartScanning(active bool, filters []filter.AdFilter) (chan *Scan
 		AddByte(0x00).Command()
 
 	logging.Debug.Printf("Starting scan")
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return nil, fmt.Errorf("unable to start scanning: %s", err.Error())
 	}
 	return h.ad, nil
@@ -413,7 +460,7 @@ func (h *Host) StopScanning() error {
 		// filter duplicates
 		AddByte(0x00).
 		Command()
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to stop scanning: %s", err.Error())
 	}
 	return nil
@@ -447,7 +494,7 @@ func (h *Host) SetAdvertisingParams(advParams hci.AdvertisingParameters) error {
 		// Filter policy
 		AddByte(byte(advParams.FilterPolicy)).Command()
 
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to set advertising parameters: %s", err.Error())
 	}
 	return nil
@@ -458,7 +505,7 @@ func putAdvData(bld *hci.CommandBuilder, datas []*hci.AdStructure) (int, error) 
 	for _, ad := range datas {
 		totalLength += ad.EncodedLength()
 		if totalLength > 32 { // FIXME: constant
-			return totalLength, fmt.Errorf("Too many bytes of advertising data")
+			return totalLength, fmt.Errorf("too many bytes of advertising data")
 		}
 		bld.AddEncodeable(ad)
 	}
@@ -482,7 +529,7 @@ func (h *Host) setAdvData(data []*hci.AdStructure, scanResp bool) error {
 	}
 	cmd := bld.PutByte(0, byte(len)).Command()
 
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return fmt.Errorf("unable set advertising data: %s", err.Error())
 	}
 
@@ -508,7 +555,7 @@ func (h *Host) StartAdvertising() error {
 		// enabled
 		AddByte(0x01).Command()
 
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to start advertising: %s", err.Error())
 	}
 	return nil
@@ -521,7 +568,7 @@ func (h *Host) StopAdvertising() error {
 		// disabled
 		AddByte(0x00).Command()
 
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to start advertising: %s", err.Error())
 	}
 	return nil
@@ -537,8 +584,22 @@ func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
 	cmd := hci.NewCommandBuilder(hci.CommandLeSetRandomAddress, 6).
 		AddBtAddress(addr).Command()
 
-	if err := h.executeStatusCommand(&cmd); err != nil {
+	if err := h.executeStatusParamCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to set random address: %s", err.Error())
+	}
+	return nil
+}
+
+// Disconnect starts disconnecting the connection with given handle.
+// Indication will be sent once connection is disconnected
+func (h *Host) Disconnect(handle hci.ConnectionHandle) error {
+	cmd := hci.NewCommandBuilder(hci.CommandDisconnect, 3).
+		// Handle for the connection to disconnect
+		AddConnectionHandle(handle).
+		// reason for disconnection
+		AddByte(0x13).Command()
+	if err := h.executeStatusCommand(&cmd); err != nil {
+		return fmt.Errorf("unable to initiate disconnection: %s", err.Error())
 	}
 	return nil
 }
@@ -548,7 +609,7 @@ func (h *Host) Deinit() {
 	logging.Debug.Printf("Deinitializing host")
 	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
 	// not checking the return value since there is not much we can do on error
-	h.executeStatusCommand(&cmd)
+	h.executeStatusParamCommand(&cmd)
 	h.mux.Lock()
 	h.closing = true
 	h.mux.Unlock()
@@ -560,5 +621,6 @@ func (h *Host) Deinit() {
 	close(h.evt)
 	close(h.cc)
 	close(h.ad)
+	close(h.Indications)
 	logging.Debug.Printf("Deinitialization done")
 }
