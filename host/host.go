@@ -592,12 +592,12 @@ func (h *Host) SetRandomAddress(addr hci.BtAddress) error {
 
 // Disconnect starts disconnecting the connection with given handle.
 // Indication will be sent once connection is disconnected
-func (h *Host) Disconnect(handle hci.ConnectionHandle) error {
+func (h *Host) Disconnect(handle hci.ConnectionHandle, reason hci.ErrorCode) error {
 	cmd := hci.NewCommandBuilder(hci.CommandDisconnect, 3).
 		// Handle for the connection to disconnect
 		AddConnectionHandle(handle).
 		// reason for disconnection
-		AddByte(0x13).Command()
+		AddErrorCode(reason).Command()
 	if err := h.executeStatusCommand(&cmd); err != nil {
 		return fmt.Errorf("unable to initiate disconnection: %s", err.Error())
 	}

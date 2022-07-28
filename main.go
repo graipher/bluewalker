@@ -390,7 +390,7 @@ func indicationListener(h *host.Host) {
 		switch ind.Type {
 		case host.ConnectionIndication:
 			fmt.Fprintf(os.Stdout, "\tPeer %s connected, disconnecting\n", ind.Peer)
-			if err := h.Disconnect(ind.Handle); err != nil {
+			if err := h.Disconnect(ind.Handle, hci.StatusRemoteUserTerminated); err != nil {
 				fmt.Fprintf(os.Stdout, "%v", err)
 			}
 		case host.DisconnectionIndication:
