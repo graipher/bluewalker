@@ -395,6 +395,10 @@ func indicationListener(h *host.Host) {
 			}
 		case host.DisconnectionIndication:
 			fmt.Fprintf(os.Stdout, "\tPeer %s disconnected\n", ind.Peer)
+			// Peer has disconnected, restart advertising.
+			if err := h.StartAdvertising(); err != nil {
+				logging.Warning.Printf("Could not restart advertising: %v", err)
+			}
 		}
 	}
 }
