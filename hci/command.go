@@ -173,3 +173,8 @@ func (b *CommandBuilder) AddConnectionHandle(handle ConnectionHandle) *CommandBu
 	b.AddUint16(uint16(handle))
 	return b
 }
+
+// AddErrorCode adds given error to command payload
+func (b *CommandBuilder) AddErrorCode(errCode ErrorCode) *CommandBuilder {
+	return b.AddByte(byte(errCode))
+}

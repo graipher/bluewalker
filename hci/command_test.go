@@ -151,6 +151,28 @@ func TestCommmandBuilder(t *testing.T) {
 			},
 			[]byte{0x01, 0x0c, 0x20, 0x04, 0x11, 0x33, 0xaa, 0xbb},
 		},
+		{
+			"add connection handle",
+			func() CommandPacket {
+				return NewCommandBuilder(CommandOpCode(CommandLeSetScanEnable), 4).
+					AddByte(0x02).
+					AddConnectionHandle(ConnectionHandle(0x002c)).
+					AddByte(0x03).
+					Command()
+			},
+			[]byte{0x01, 0x0c, 0x20, 0x04, 0x02, 0x2c, 0x00, 0x03},
+		},
+		{
+			"add error code",
+			func() CommandPacket {
+				return NewCommandBuilder(CommandOpCode(CommandLeSetScanEnable), 3).
+					AddByte(0x02).
+					AddErrorCode(StatusUnknownCommand).
+					AddByte(0x03).
+					Command()
+			},
+			[]byte{0x01, 0x0c, 0x20, 0x03, 0x02, 0x01, 0x03},
+		},
 	}
 
 	for _, test := range tests {
