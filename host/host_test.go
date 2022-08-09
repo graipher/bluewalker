@@ -57,6 +57,12 @@ func mkCommandCompleteEvent(status hci.ErrorCode, op hci.CommandOpCode, nrComple
 	return cc
 }
 
+func mkCommandStatusEvent(status hci.ErrorCode, op hci.CommandOpCode, nrCompleted int, t *testing.T) *hci.CommandStatusEvent {
+	return &hci.CommandStatusEvent{
+		Status: status, Command: op, NumCommands: byte(nrCompleted),
+	}
+}
+
 func TestCommandExecSuccess(t *testing.T) {
 
 	h := New(nil)
@@ -128,6 +134,25 @@ func TestCommandExecFail2(t *testing.T) {
 	}
 }
 
+func TestCommandStatusExecFail(t *testing.T) {
+
+	h := New(nil)
+	cmd := hci.NewCommandBuilder(hci.CommandDisconnect, 3).
+		AddConnectionHandle(hci.ConnectionHandle(0x002d)).AddByte(0x00).Command()
+
+	ch := make(chan error)
+	go func(errChan chan error, t *testing.T) {
+		errChan <- h.executeStatusCommand(&cmd)
+	}(ch, t)
+
+	exec := <-h.cmd
+	exec.fail(fmt.Errorf("execution failure"))
+	err := <-ch
+	if err == nil {
+		t.Errorf("expected the command execution to fail")
+	}
+}
+
 func TestCommandExecWithCCWithoutStatus(t *testing.T) {
 	h := New(nil)
 	cmd := hci.CommandPacket{OpCode: hci.CommandReset}
@@ -171,6 +196,39 @@ func TestExecutorHappy(t *testing.T) {
 
 		}}
 	cc := mkCommandCompleteEvent(hci.StatusSuccess, hci.CommandReset, 1, t)
+
+	go h.executor()
+	h.cmd <- &ex
+	h.cc <- cc
+
+	// Wait for ex.complete() to be called
+	<-ch
+
+	// Check that the command was written
+	if len(trp.received) != 1 {
+		t.Errorf("Command was not written to transport")
+	}
+	close(h.cmd)
+	close(h.cc)
+}
+
+func TestExecutorStatusHappy(t *testing.T) {
+
+	trp := new(testTransport)
+	trp.received = make([][]byte, 0)
+	h := New(trp)
+
+	cmd := hci.NewCommandBuilder(hci.CommandDisconnect, 3).AddUint16(0x11aa).AddByte(0x00).Command()
+
+	ch := make(chan int)
+
+	ex := exec{cmd: &cmd,
+		status: func(cc *hci.CommandStatusEvent) {
+			ch <- 1
+		}, fail: func(er error) {
+
+		}}
+	cc := mkCommandStatusEvent(hci.StatusSuccess, hci.CommandDisconnect, 1, t)
 
 	go h.executor()
 	h.cmd <- &ex
@@ -338,6 +396,44 @@ func TestEventHandlerCC(t *testing.T) {
 		t.Errorf("Received unexpected Command Complete event")
 	}
 }
+
+func TestEventHandlerCS(t *testing.T) {
+	h := New(nil)
+	buf := []byte{byte(hci.EventCodeCommandStatus), 0x04, byte(hci.StatusSuccess), 0x01, 0x00, 0x00}
+	binary.LittleEndian.PutUint16(buf[4:], uint16(hci.CommandDisconnect))
+
+	go h.eventHandler()
+	h.evt <- buf
+
+	cs := <-h.cc
+	close(h.evt)
+	if cs.GetCommandOpCode() != hci.CommandDisconnect || cs.GetStatus() != hci.StatusSuccess ||
+		cs.GetEventCode() != hci.EventCodeCommandStatus {
+		t.Errorf("received unexpected Command Status event")
+	}
+}
+
+func TestEventHandlerInvalidCS(t *testing.T) {
+	h := New(nil)
+
+	bufInvalid := []byte{byte(hci.EventCodeCommandStatus), 0x02, byte(hci.StatusSuccess), 0x01}
+
+	buf := []byte{byte(hci.EventCodeCommandStatus), 0x04, byte(hci.StatusSuccess), 0x01, 0x00, 0x00}
+	binary.LittleEndian.PutUint16(buf[4:], uint16(hci.CommandDisconnect))
+
+	go h.eventHandler()
+	h.evt <- bufInvalid
+	h.evt <- buf
+
+	cs := <-h.cc
+	close(h.evt)
+	if cs.GetCommandOpCode() != hci.CommandDisconnect || cs.GetStatus() != hci.StatusSuccess ||
+		cs.GetEventCode() != hci.EventCodeCommandStatus {
+		t.Errorf("received unexpected Command Status event")
+	}
+
+}
+
 func TestEventHandlerWithInvalidEvents(t *testing.T) {
 
 	h := New(nil)
@@ -435,6 +531,60 @@ func TestEventHandlerMeta(t *testing.T) {
 		// the Advertising report parsing is tested elsewhere
 		t.Errorf("Unexpected address in edvertising report")
 	}
+}
+
+func TestEventHandlerConnection(t *testing.T) {
+	h := New(nil)
+
+	connComplete, _ := hex.DecodeString("3e1301002d00010155532fe0e77a18000000480001")
+	disconnected, _ := hex.DecodeString("0504002d0013")
+
+	expectedPeer, _ := hci.BtAddressFromString("7a:e7:e0:2f:53:55")
+	expectedPeer.Atype = hci.LeRandomAddress
+
+	go h.eventHandler()
+	h.evt <- connComplete
+	ind := <-h.Indications
+	if ind.Type != ConnectionIndication || ind.Handle != hci.ConnectionHandle(0x002d) || ind.Peer != expectedPeer {
+		t.Errorf("received unexpected indication")
+	}
+
+	h.evt <- disconnected
+	ind = <-h.Indications
+	if ind.Type != DisconnectionIndication || ind.Handle != hci.ConnectionHandle(0x002d) || ind.Peer != expectedPeer {
+		t.Errorf("received unexpected indication")
+	}
+
+	close(h.evt)
+
+}
+func TestEventHandlerConnectionUnexpectedHandle(t *testing.T) {
+	h := New(nil)
+
+	connComplete, _ := hex.DecodeString("3e1301002d00010155532fe0e77a18000000480001")
+	disconnectedUnexpected, _ := hex.DecodeString("0504002c0013")
+	disconnected, _ := hex.DecodeString("0504002d0013")
+
+	expectedPeer, _ := hci.BtAddressFromString("7a:e7:e0:2f:53:55")
+	expectedPeer.Atype = hci.LeRandomAddress
+
+	go h.eventHandler()
+	h.evt <- connComplete
+	ind := <-h.Indications
+	if ind.Type != ConnectionIndication || ind.Handle != hci.ConnectionHandle(0x002d) || ind.Peer != expectedPeer {
+		t.Errorf("received unexpected indication")
+	}
+
+	h.evt <- disconnectedUnexpected
+	h.evt <- disconnected
+	// we should get indication only for the one for which we have received connection complete for
+	ind = <-h.Indications
+	if ind.Type != DisconnectionIndication || ind.Handle != hci.ConnectionHandle(0x002d) || ind.Peer != expectedPeer {
+		t.Errorf("received unexpected indication")
+	}
+
+	close(h.evt)
+
 }
 
 func TestEventReceiver(t *testing.T) {
@@ -885,6 +1035,37 @@ func TestCommand(t *testing.T) {
 			[]hci.ErrorCode{},
 			true,
 		},
+		{
+			"Disconnect connection",
+			func(h *Host, ch chan error) {
+				handle := hci.ConnectionHandle(0x002d)
+				ch <- h.Disconnect(handle, hci.StatusRemoteUserTerminated)
+			},
+			[]hci.CommandOpCode{hci.CommandDisconnect},
+			[]checkfn{
+				func(encoded []byte, t *testing.T) {
+					if len(encoded) != paramStartOffset+3 {
+						t.Errorf("Invalid length for parameters")
+					}
+					if !bytes.Equal(encoded[paramStartOffset:], []byte{0x2d, 0x00, 0x13}) {
+						t.Error("Unexpected payload for command")
+					}
+				},
+			},
+			[]hci.ErrorCode{hci.StatusSuccess},
+			false,
+		},
+		{
+			"Disconnect connection Fail",
+			func(h *Host, ch chan error) {
+				handle := hci.ConnectionHandle(0x002d)
+				ch <- h.Disconnect(handle, hci.StatusRemoteUserTerminated)
+			},
+			[]hci.CommandOpCode{hci.CommandDisconnect},
+			[]checkfn{nil},
+			[]hci.ErrorCode{hci.StatusCommandDisallowed},
+			true,
+		},
 	}
 
 	for _, test := range tests {
@@ -902,7 +1083,11 @@ func TestCommand(t *testing.T) {
 					enc := cmd.cmd.Encode()
 					test.check[i](enc, t)
 				}
-				cmd.complete(mkCommandCompleteEvent(test.statuses[i], op, 1, t))
+				if cmd.cmd.OpCode.ExpectsCommandComplete() {
+					cmd.complete(mkCommandCompleteEvent(test.statuses[i], op, 1, t))
+				} else {
+					cmd.status(mkCommandStatusEvent(test.statuses[i], op, 1, t))
+				}
 			}
 			err := <-ch
 			if test.expectErr && err == nil {

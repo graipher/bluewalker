@@ -56,6 +56,11 @@ func (op CommandOpCode) String() string {
 	}
 }
 
+// Does this command expect to receive Command Complete event as response
+func (op CommandOpCode) ExpectsCommandComplete() bool {
+	return op != CommandDisconnect
+}
+
 const (
 	headerLength int = 3
 )
@@ -94,7 +99,7 @@ func (pkt *CommandPacket) Encode() []byte {
 	return ret
 }
 
-//Encodeable can be encoded to byte array
+// Encodeable can be encoded to byte array
 type Encodeable interface {
 	// EncodeTo encodes data to given byte array, returns number of
 	// bytes written or error if data could not be written.

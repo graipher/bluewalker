@@ -15,7 +15,7 @@ func DecodeConnectionHandle(data []byte) ConnectionHandle {
 }
 
 func (h ConnectionHandle) String() string {
-	return fmt.Sprintf("%.2x", uint16(h))
+	return fmt.Sprintf("%.4x", uint16(h))
 }
 
 type LeConnectionRole byte

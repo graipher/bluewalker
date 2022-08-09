@@ -72,14 +72,25 @@ type LeMetaEvent struct {
 
 const (
 	// minimum length for command complete event
-	ccMinParamLength  int = 3
+	ccMinParamLength int = 3
+	// minimum lenght for command status event
+	csMinParamLength int = 4
+	// minimum length for Disconnection Complete Event
+	dcMinParamLength  int = 4
 	leMetaParamLength int = 1
 )
 
+// StatusEvent is event which contains a status parameter (and flow control
+// information).
+// Either Command Complete Evebnt or Command Status Event.
 type StatusEvent interface {
+	// Returns the number of HCI command packes which can be sent to controller
 	GetNumHciCommandPackets() byte
+	// Get opcode for the command the status is for
 	GetCommandOpCode() CommandOpCode
+	// Get status for the operation
 	GetStatus() ErrorCode
+	// Get Event Code for this event
 	GetEventCode() EventCode
 }
 
@@ -118,7 +129,6 @@ func (cc *CommandCompleteEvent) GetReturnParameters() []byte {
 }
 
 //GetStatusParameter returns the first parameter as status code.
-// XXX bounds check
 func (cc *CommandCompleteEvent) GetStatusParameter() ErrorCode {
 	return ErrorCode(cc.parameters[3])
 }
@@ -142,6 +152,8 @@ func DecodeLeMeta(evt *Event) (*LeMetaEvent, error) {
 	return &LeMetaEvent{Event: *evt}, nil
 }
 
+// Command Status Event from Controller
+// See Bluetooth 5.2 vol 4 part E, ch 7.7.15
 type CommandStatusEvent struct {
 	Status      ErrorCode
 	NumCommands byte
@@ -149,8 +161,8 @@ type CommandStatusEvent struct {
 }
 
 func DecodeCommandStatus(evt *Event) (*CommandStatusEvent, error) {
-	if len(evt.parameters) < 4 {
-		return nil, fmt.Errorf("invalid payload length %d, expected 4", len(evt.parameters))
+	if len(evt.parameters) < csMinParamLength {
+		return nil, fmt.Errorf("invalid payload length %d, expected %d", len(evt.parameters), csMinParamLength)
 	}
 	status := ErrorCode(evt.parameters[0])
 	numCommands := evt.parameters[1]
@@ -185,8 +197,8 @@ type DisconnectionCompleteEvent struct {
 // from event parameters.
 func DecodeDisconnectionComplete(ev *Event) (*DisconnectionCompleteEvent, error) {
 
-	if len(ev.parameters) < 4 {
-		return nil, fmt.Errorf("invalid payload length %d, expected 4", len(ev.parameters))
+	if len(ev.parameters) < dcMinParamLength {
+		return nil, fmt.Errorf("invalid payload length %d, expected %d", len(ev.parameters), dcMinParamLength)
 	}
 	status := ErrorCode(ev.parameters[0])
 	handle := DecodeConnectionHandle(ev.parameters[1:])
@@ -207,6 +219,11 @@ type SubeventCode byte
 const (
 	SubeventLeConnectionComplete SubeventCode = 0x01
 	SubeventAdvertisingReport    SubeventCode = 0x02
+)
+
+// minimum length for LE Meta events
+const (
+	leConnCompleteMinParamLength int = 18
 )
 
 //GetSubeventCode return subevent code parameter value
@@ -235,8 +252,8 @@ type LeConnectionCompleteEvent struct {
 // given LE Meta Event. Error is returned if event could not be parsed.
 func DecodeLeConnectionComplete(le *LeMetaEvent) (*LeConnectionCompleteEvent, error) {
 	params := le.GetParameters()
-	if len(params) < 18 {
-		return nil, fmt.Errorf("invalid payload length %d, expected 18", len(params))
+	if len(params) < leConnCompleteMinParamLength {
+		return nil, fmt.Errorf("invalid payload length %d, expected %d", len(params), leConnCompleteMinParamLength)
 	}
 	status := ErrorCode(params[0])
 	handle := DecodeConnectionHandle(params[1:])
