@@ -108,7 +108,7 @@ func init() {
 
 }
 
-//print the collected information about found devices
+// print the collected information about found devices
 func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out output) error {
 
 	if cmdline.json {
@@ -212,10 +212,14 @@ func mijiaOutput(out output, data *mijia.Data, address hci.BtAddress, rssi int8)
 
 func sensorDecodingLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	var mijiaOutputf func(*mijia.Data, hci.BtAddress, int8) error
+	var outputf func(*foundDevice) error
 	var ruuviOutputf func(*ruuvi.Data, hci.BtAddress, int8) error
 	if cmdline.json {
 		mijiaOutputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
 			return mijiaOutputJSON(out, data, addr, rssi)
+		}
+		outputf = func(found *foundDevice) error {
+			return out.writeAsJSON(found)
 		}
 		ruuviOutputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
 			return ruuviOutputJSON(out, data, addr, rssi)
@@ -223,6 +227,9 @@ func sensorDecodingLoop(reportChan chan *host.ScanReport, out output, term chan 
 	} else {
 		mijiaOutputf = func(data *mijia.Data, addr hci.BtAddress, rssi int8) error {
 			return mijiaOutput(out, data, addr, rssi)
+		}
+		outputf = func(found *foundDevice) error {
+			return out.write(found.String())
 		}
 		ruuviOutputf = func(data *ruuvi.Data, addr hci.BtAddress, rssi int8) error {
 			return ruuviOutput(out, data, addr, rssi)
@@ -254,21 +261,6 @@ func sensorDecodingLoop(reportChan chan *host.ScanReport, out output, term chan 
 				}
 			}
 		}
-	}
-}
-
-func observerLoop(reportChan chan *host.ScanReport, out output, term chan int) {
-	var outputf func(*foundDevice) error
-	if cmdline.json {
-		outputf = func(found *foundDevice) error {
-			return out.writeAsJSON(found)
-		}
-	} else {
-		outputf = func(found *foundDevice) error {
-			return out.write(found.String())
-		}
-	}
-	for sr := range reportChan {
 		found := &foundDevice{Structures: sr.Data,
 			Rssi:     sr.Rssi,
 			LastSeen: time.Now(),
@@ -283,7 +275,7 @@ func observerLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	}
 }
 
-//listen for incoming scan reports, collect data and print it once the channel closes
+// listen for incoming scan reports, collect data and print it once the channel closes
 func collectorLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	collected := make(map[hci.BtAddress]*foundDevice)
 	for sr := range reportChan {
@@ -334,7 +326,7 @@ func errorMessage(message string) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
 }
 
-//error_critical will print given error message and terminate the program
+// error_critical will print given error message and terminate the program
 // if host is non-nil, it will be deinitialized before stoppping
 // if out is non-nil, the output is closed before stopping
 func errorCritical(host *host.Host, out output, message string) {
@@ -348,7 +340,7 @@ func errorCritical(host *host.Host, out output, message string) {
 	os.Exit(255)
 }
 
-//table containing parsers for different filters
+// table containing parsers for different filters
 // If get_param function returns non-nil value, the parser function
 // can be used to parse the filter.
 var filterTab = []struct {
@@ -534,7 +526,7 @@ func main() {
 			filters = append(filters, filter.ByAdData(hci.AdServiceData, []byte{0x1a, 0x18}))
 		}
 	} else if cmdline.observer {
-		loop = observerLoop
+		loop = sensorDecodingLoop
 	} else if cmdline.broadcaster {
 		loop = nil
 	} else {
