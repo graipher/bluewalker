@@ -1,3 +1,7 @@
+v0.4.0 (2025-11-07)
+
+  * Added support for Ruuvi Air by implementing the v6 format. Andreas Weiden (@graipher)
+
 v0.3.1 (2022-06-11)
 
   * Improved handling of missing measurement values for Ruuvi tags. Improves

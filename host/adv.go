@@ -1,9 +1,9 @@
 package host
 
 import (
-	"gitlab.com/jtaimisto/bluewalker/filter"
-	"gitlab.com/jtaimisto/bluewalker/hci"
-	"gitlab.com/jtaimisto/bluewalker/logging"
+	"github.com/graipher/bluewalker/filter"
+	"github.com/graipher/bluewalker/hci"
+	"github.com/graipher/bluewalker/logging"
 )
 
 // Parse Advertising Report Data.

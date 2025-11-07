@@ -3,20 +3,20 @@
 // of Ruuvi data protocols.
 //
 // This package supports protocol specifications for dataformats
-// version 3 (RAWv1) and 5 (RAWv2).
+// version 3 (RAWv1), 5 (RAWv2), and 6.
 package ruuvi
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
 // Ruuvi Tag data format as specified in
 // https://github.com/ruuvi/ruuvi-sensor-protocols
 
 // Offsets for the ruuvi measurement data
-// These are for format version 3
 const (
 	formatOffset          int = 0
 	v3HumidityOffset      int = 1
@@ -33,11 +33,13 @@ const (
 const (
 	v3DataLength int = 14
 	v5DataLength int = 24
+	v6DataLength int = 19
 )
 
 const (
 	formatV3 int = 3
 	formatV5 int = 5
+	formatV6 int = 6
 )
 
 // Values returned for Invalid / Not available" values.
@@ -61,6 +63,16 @@ const (
 	MoveCountNA int = 255
 	// SeqnoNA indicates sequence number is invalid or not available.
 	SeqnoNA int = 0xffff
+	// PM2_5NA indicates PM2.5 is invalid or not available.
+	PM2_5NA float32 = 6553.5 // 65535
+	//CO2NA indicates CO2 is invalid or not available.
+	CO2NA float32 = 65535 // 65535
+	// VOCNA indicates VOC is invalid or not available.
+	VOCNA int = 511 // 0x1FF
+	// NOXNA indicates VOC is invalid or not available.
+	NOXNA int = 511 // 0x1FF
+	// LuminosityNA indicates luminosity is invalid or not available.
+	LuminosityNA float32 = 68459.87570473587 // 255
 )
 
 // Data contains measurement information parsed from the vendor specific
@@ -86,6 +98,13 @@ type Data struct {
 	TxPower   int `json:"txpower"`
 	MoveCount int `json:"movementCount"`
 	Seqno     int `json:"sequence"`
+	// V6 Only
+	PM2_5       float32 `json:"pm2_5"`
+	CO2         float32 `json:"co2"`
+	VOC         int     `json:"voc"`
+	NOX         int     `json:"nox"`
+	Luminosity  float32 `json:"luminosity"`
+	Calibrating bool    `json:"calibrating"`
 }
 
 // TemperatureValid is true when Temperature is valid.
@@ -108,6 +127,21 @@ func (d Data) MoveCountValid() bool { return d.MoveCount != MoveCountNA }
 
 // SeqnoValid is true when Seqno is valid.
 func (d Data) SeqnoValid() bool { return d.Seqno != SeqnoNA }
+
+// PM2_5Valid is true when PM2_5 is valid.
+func (d Data) PM2_5Valid() bool { return d.PM2_5 != PM2_5NA }
+
+// CO2Valid is true when CO2 is valid.
+func (d Data) CO2Valid() bool { return d.CO2 != CO2NA }
+
+// VOCValid is true when VOC is valid.
+func (d Data) VOCValid() bool { return d.VOC != VOCNA }
+
+// NOXValid is true when NOX is valid.
+func (d Data) NOXValid() bool { return d.NOX != NOXNA }
+
+// LuminoValid is true when Lumino is valid.
+func (d Data) LuminoValid() bool { return d.Luminosity != LuminosityNA }
 
 // AccelerationValid is true when AccelerationX, AccelerationY and AccelerationZ
 // are valid.
@@ -158,6 +192,12 @@ func decodeV3Data(data []byte) (*Data, error) {
 	ret.TxPower = TxPowerNA
 	ret.MoveCount = MoveCountNA
 	ret.Seqno = SeqnoNA
+	ret.CO2 = CO2NA
+	ret.Calibrating = false
+	ret.Luminosity = LuminosityNA
+	ret.NOX = NOXNA
+	ret.VOC = VOCNA
+	ret.PM2_5 = PM2_5NA
 
 	return ret, nil
 }
@@ -197,18 +237,78 @@ func decodeV5Data(data []byte) (*Data, error) {
 	binary.Read(rd, be, &u16)
 	ret.Seqno = int(u16)
 
+	// Not available is signified by largest presentable number for unsigned
+	// values, smallest presentable number for signed values
+	ret.CO2 = CO2NA
+	ret.Calibrating = false
+	ret.Luminosity = LuminosityNA
+	ret.NOX = NOXNA
+	ret.VOC = VOCNA
+	ret.PM2_5 = PM2_5NA
+
 	return ret, nil
 }
 
-//Unmarshall parses Ruuvi Data from given byte array and returns Data struct
-//containing the read values
-//Renamed to Decode(), this alias is here just for backwards compatability
+func decodeV6Data(data []byte) (*Data, error) {
+
+	be := binary.BigEndian
+	var s16 int16
+	var u16 uint16
+	var u8 uint8
+
+	ret := new(Data)
+	rd := bytes.NewReader(data[formatOffset+1:])
+
+	binary.Read(rd, be, &s16)
+	ret.Temperature = float32(s16) * 0.005
+	binary.Read(rd, be, &u16)
+	ret.Humidity = float32(u16) * 0.0025
+	binary.Read(rd, be, &u16)
+	ret.Pressure = int(u16) + 50000
+
+	binary.Read(rd, be, &u16)
+	ret.PM2_5 = float32(u16) * 0.1
+	binary.Read(rd, be, &u16)
+	ret.CO2 = float32(u16)
+	binary.Read(rd, be, &u8) // VOC
+	voc := u8
+	binary.Read(rd, be, &u8) // NOX
+	nox := u8
+
+	binary.Read(rd, be, &u8)
+	ret.Luminosity = float32(math.Exp(float64(u8)*math.Log(65535+1)/254) - 1)
+
+	binary.Read(rd, be, &u8) // Reserved
+
+	binary.Read(rd, be, &u8)
+	ret.Seqno = int(u8)
+
+	binary.Read(rd, be, &u8) // Flags
+	ret.Calibrating = u8&0b00000001 != 0
+	ret.VOC = (int(voc) << 1) | int((u8&0b01000000)>>6)
+	ret.NOX = (int(nox) << 1) | int((u8&0b10000000)>>7)
+
+	// Not available is signified by largest presentable number for unsigned
+	// values, smallest presentable number for signed values
+	ret.AccelerationX = AccelerationNA
+	ret.AccelerationY = AccelerationNA
+	ret.AccelerationZ = AccelerationNA
+	ret.MoveCount = MoveCountNA
+	ret.TxPower = TxPowerNA
+	ret.Voltage = VoltageNA
+
+	return ret, nil
+}
+
+// Unmarshall parses Ruuvi Data from given byte array and returns Data struct
+// containing the read values
+// Renamed to Decode(), this alias is here just for backwards compatability
 func Unmarshall(data []byte) (*Data, error) {
 	return Decode(data)
 }
 
-//Decode decodes Ruuvi data from given advertising data. Returned Data
-//structrure contains the decoded values.
+// Decode decodes Ruuvi data from given advertising data. Returned Data
+// structrure contains the decoded values.
 func Decode(data []byte) (*Data, error) {
 
 	// Check if the data contains the Ruuvi Manufacturer ID, strip it
@@ -231,6 +331,11 @@ func Decode(data []byte) (*Data, error) {
 			return nil, fmt.Errorf("expected at least %d bytes of data, got %d", v5DataLength, len(data))
 		}
 		return decodeV5Data(data)
+	case formatV6:
+		if len(data) < v6DataLength {
+			return nil, fmt.Errorf("expected at least %d bytes of data, got %d", v6DataLength, len(data))
+		}
+		return decodeV6Data(data)
 	default:
 		return nil, fmt.Errorf("ruuvi Data format %d not supported", data[formatOffset])
 	}

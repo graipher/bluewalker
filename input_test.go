@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"gitlab.com/jtaimisto/bluewalker/hci"
+	"github.com/graipher/bluewalker/hci"
 )
 
 func toAddr(addr string, atype hci.BtAddressType) hci.BtAddress {

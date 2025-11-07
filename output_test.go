@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/jtaimisto/bluewalker/hci"
+	"github.com/graipher/bluewalker/hci"
 )
 
 func MustCreateAddress(str string, random bool) hci.BtAddress {

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"gitlab.com/jtaimisto/bluewalker/hci"
+	"github.com/graipher/bluewalker/hci"
 )
 
 func buildAdvertisingReport(addrString string, data []*hci.AdStructure) *hci.AdvertisingReport {

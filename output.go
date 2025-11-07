@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync"
 
-	"gitlab.com/jtaimisto/bluewalker/hci"
-	"gitlab.com/jtaimisto/bluewalker/logging"
-	"gitlab.com/jtaimisto/bluewalker/uuid"
+	"github.com/graipher/bluewalker/hci"
+	"github.com/graipher/bluewalker/logging"
+	"github.com/graipher/bluewalker/uuid"
 )
 
 // output interface defines type which can be used to output data
@@ -211,7 +211,7 @@ func checkFlag(flags byte, flag int) bool {
 	return (int(flags) & flag) == flag
 }
 
-//Description for each flag in AD Flags bitmask
+// Description for each flag in AD Flags bitmask
 var flagNames = []struct {
 	flag int
 	name string

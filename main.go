@@ -13,17 +13,17 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.com/jtaimisto/bluewalker/filter"
-	"gitlab.com/jtaimisto/bluewalker/hci"
-	"gitlab.com/jtaimisto/bluewalker/host"
-	"gitlab.com/jtaimisto/bluewalker/logging"
-	"gitlab.com/jtaimisto/bluewalker/mijia"
-	"gitlab.com/jtaimisto/bluewalker/ruuvi"
+	"github.com/graipher/bluewalker/filter"
+	"github.com/graipher/bluewalker/hci"
+	"github.com/graipher/bluewalker/host"
+	"github.com/graipher/bluewalker/logging"
+	"github.com/graipher/bluewalker/mijia"
+	"github.com/graipher/bluewalker/ruuvi"
 )
 
 const (
 	//BluewalkerVersion contains the current version string
-	BluewalkerVersion string = "0.3.1"
+	BluewalkerVersion string = "0.4.0"
 )
 
 // Command line settings
@@ -108,7 +108,7 @@ func init() {
 
 }
 
-//print the collected information about found devices
+// print the collected information about found devices
 func printCollectedInfo(infoMap map[hci.BtAddress]*foundDevice, out output) error {
 
 	if cmdline.json {
@@ -147,9 +147,12 @@ func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8)
 	bld := new(strings.Builder)
 
 	v5data := data.Seqno != ruuvi.SeqnoNA
+	v6data := v5data && data.CO2Valid()
 
 	fmt.Fprintf(bld, "Ruuvi device %s, Data format:", formatAddress(address))
-	if v5data {
+	if v6data {
+		fmt.Fprintf(bld, "v6 ")
+	} else if v5data {
 		fmt.Fprintf(bld, "v5 ")
 	} else {
 		fmt.Fprintf(bld, "v3 ")
@@ -174,8 +177,28 @@ func ruuviOutput(out output, data *ruuvi.Data, address hci.BtAddress, rssi int8)
 	if data.AccelerationValid() {
 		fmt.Fprintf(bld, "\tAcceleration X: %.2fG, Y: %.2fG, Z: %.2fG\n", data.AccelerationX, data.AccelerationY, data.AccelerationZ)
 	}
-	if v5data {
+	if v5data && !v6data {
 		fmt.Fprintf(bld, "\tTxPower: %d dBm, Moves: %d, Seqno: %d\n", data.TxPower, data.MoveCount, data.Seqno)
+	}
+
+	if v6data {
+		fmt.Fprintf(bld, "\t")
+		if data.CO2Valid() {
+			fmt.Fprintf(bld, "CO2: %.2f ppm ", data.CO2)
+		}
+		if data.NOXValid() {
+			fmt.Fprintf(bld, "NOX: %d", data.NOX)
+		}
+		if data.VOCValid() {
+			fmt.Fprintf(bld, "VOC: %d", data.VOC)
+		}
+		if data.PM2_5Valid() {
+			fmt.Fprintf(bld, "PM2.5: %.2f ug/m3 ", data.PM2_5)
+		}
+		if data.LuminoValid() {
+			fmt.Fprintf(bld, "Luminosity: %.2f lux", data.Luminosity)
+		}
+		fmt.Fprintf(bld, "\n")
 	}
 	return out.write(bld.String())
 }
@@ -283,7 +306,7 @@ func observerLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	}
 }
 
-//listen for incoming scan reports, collect data and print it once the channel closes
+// listen for incoming scan reports, collect data and print it once the channel closes
 func collectorLoop(reportChan chan *host.ScanReport, out output, term chan int) {
 	collected := make(map[hci.BtAddress]*foundDevice)
 	for sr := range reportChan {
@@ -334,7 +357,7 @@ func errorMessage(message string) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
 }
 
-//error_critical will print given error message and terminate the program
+// error_critical will print given error message and terminate the program
 // if host is non-nil, it will be deinitialized before stoppping
 // if out is non-nil, the output is closed before stopping
 func errorCritical(host *host.Host, out output, message string) {
@@ -348,7 +371,7 @@ func errorCritical(host *host.Host, out output, message string) {
 	os.Exit(255)
 }
 
-//table containing parsers for different filters
+// table containing parsers for different filters
 // If get_param function returns non-nil value, the parser function
 // can be used to parse the filter.
 var filterTab = []struct {

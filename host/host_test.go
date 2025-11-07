@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/jtaimisto/bluewalker/hci"
+	"github.com/graipher/bluewalker/hci"
 )
 
 type testTransport struct {

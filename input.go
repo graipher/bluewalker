@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/jtaimisto/bluewalker/filter"
-	"gitlab.com/jtaimisto/bluewalker/hci"
+	"github.com/graipher/bluewalker/filter"
+	"github.com/graipher/bluewalker/hci"
 )
 
 func parseAddress(addr string) (hci.BtAddress, error) {
@@ -38,8 +38,8 @@ func parseAddress(addr string) (hci.BtAddress, error) {
 	return baddr, nil
 }
 
-//parseAddressFilters parses one or more address filters from given
-//input from command line options
+// parseAddressFilters parses one or more address filters from given
+// input from command line options
 func parseAddressFilters(addresses string) (filter.AdFilter, error) {
 
 	addrs := strings.Split(addresses, ";")
@@ -104,7 +104,7 @@ func parsePartialAddrFilter(data string) (filter.AdFilter, error) {
 	return filter.ByPartialAddress(bytes), nil
 }
 
-//parseIrkFilter parses IRK filter from IRK given as command line parameter
+// parseIrkFilter parses IRK filter from IRK given as command line parameter
 func parseIrkFilter(data string) (filter.AdFilter, error) {
 	bytes, err := parseByteArray(data, hci.IrkLength)
 	if err != nil {
@@ -122,8 +122,8 @@ func parseIrkFilter(data string) (filter.AdFilter, error) {
 	return filter.ByIrk(irk), nil
 }
 
-//parseVendorSpecFilter parses filter for vendor specific data from
-//command line parameter
+// parseVendorSpecFilter parses filter for vendor specific data from
+// command line parameter
 func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 
 	bytes, err := parseByteArray(data, -1)
@@ -133,7 +133,8 @@ func parseVendorSpecFilter(data string) (filter.AdFilter, error) {
 	return filter.ByVendor(bytes), nil
 }
 
-//parseAdTypeFilters parses one or more filters for AD types from command
+// parseAdTypeFilters parses one or more filters for AD types from command
+//
 //line parameters
 func parseAdTypeFilters(types string) (filter.AdFilter, error) {
 
@@ -178,7 +179,7 @@ func parseAdStructure(adstruct string) (hci.AdType, []byte, error) {
 	return hci.AdType(typ[0]), data, nil
 }
 
-//parseAdStructures parses one or more Ad Structures from command line parameters
+// parseAdStructures parses one or more Ad Structures from command line parameters
 func parseAdStructures(structs string) ([]*hci.AdStructure, error) {
 
 	ads := strings.Split(structs, ";")

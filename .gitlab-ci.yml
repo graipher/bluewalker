@@ -4,25 +4,25 @@
 # See https://docs.gitlab.com/ee/ci/variables/#priority-of-environment-variables
 image: golang:latest
 stages:
-- build
-- test
+  - build
+  - test
 build-main-app:
   stage: build
   script:
-  - go install gitlab.com/jtaimisto/bluewalker
-  - go install gitlab.com/jtaimisto/bluewalker/listener
+    - go install github.com/graipher/bluewalker
+    - go install github.com/graipher/bluewalker/listener
 run-tests:
   stage: test
   script:
-  - go test -race -coverprofile=.cov.out gitlab.com/jtaimisto/bluewalker/...
-  - go tool cover -func .cov.out
+    - go test -race -coverprofile=.cov.out github.com/graipher/bluewalker/...
+    - go tool cover -func .cov.out
 check-min-version:
   image: golang:1.15
   stage: test
   script:
-  - go install gitlab.com/jtaimisto/bluewalker
-  - go test gitlab.com/jtaimisto/bluewalker/...
+    - go install github.com/graipher/bluewalker
+    - go test github.com/graipher/bluewalker/...
 sast:
   stage: test
 include:
-- template: Security/SAST.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml

@@ -7,8 +7,8 @@ allow raw access to the Bluetooth controller and bypasses the Linux Bluetooth
 stack. This allows Bluewalker access to all Bluetooth LE Advertisement Data sent
 by nearby Bluetooth LE devices.
 
-[![pipeline status](https://gitlab.com/jtaimisto/bluewalker/badges/master/pipeline.svg)](https://gitlab.com/jtaimisto/bluewalker/commits/master)
-[![coverage report](https://gitlab.com/jtaimisto/bluewalker/badges/master/coverage.svg)](https://gitlab.com/jtaimisto/bluewalker/commits/master)
+[![pipeline status](https://github.com/graipher/bluewalker/badges/master/pipeline.svg)](https://github.com/graipher/bluewalker/commits/master)
+[![coverage report](https://github.com/graipher/bluewalker/badges/master/coverage.svg)](https://github.com/graipher/bluewalker/commits/master)
 
 Bluewalker can be used in four different modes:
 
@@ -31,7 +31,7 @@ Bluewalker can be used in four different modes:
 On Linux, with go 1.16 or newer installed:
 
 ```
-$ go install gitlab.com/jtaimisto/bluewalker@latest
+$ go install github.com/graipher/bluewalker@latest
 ```
 
 This will install the binary to ~/bin by default.

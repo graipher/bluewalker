@@ -135,6 +135,42 @@ var unmarshallTests = []unmarshallTest{
 			Voltage: VoltageNA, TxPower: TxPowerNA, MoveCount: MoveCountNA, Seqno: SeqnoNA,
 		},
 	},
+	{
+		"Vector 8 - v6 doc: valid data",
+		"06170C5668C79E007000C90501D900CD004C884F",
+		&Data{
+			Temperature: 29.5, Pressure: 101102, Humidity: 55.3,
+			PM2_5: 11.2, CO2: 201, VOC: 10, NOX: 2, Luminosity: 13026.669,
+			Seqno: 205, Calibrating: false,
+		},
+	},
+	{
+		"Vector 9 - v6 doc: maximum values",
+		"067FFF9C40FFFE27109C40FAFAFE00FF074C8F4F",
+		&Data{
+			Temperature: 163.83499, Pressure: 115534, Humidity: 100.0,
+			PM2_5: 1000.0, CO2: 40000, VOC: 500, NOX: 500, Luminosity: 65535.0,
+			Seqno: 255, Calibrating: true,
+		},
+	},
+	{
+		"Vector 10 - v6 doc: minimum values",
+		"06800100000000000000000000000000004C884F",
+		&Data{
+			Temperature: -163.83499, Pressure: 50000, Humidity: 0.0,
+			PM2_5: 0.0, CO2: 0, VOC: 0, NOX: 0, Luminosity: 0.0,
+			Seqno: 0, Calibrating: false,
+		},
+	},
+	{
+		"Vector 11 - v6 doc: invalid values",
+		"068000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+		&Data{
+			Temperature: TemperatureNA, Pressure: PressureNA, Humidity: HumidityNA,
+			PM2_5: PM2_5NA, CO2: CO2NA, VOC: VOCNA, NOX: NOXNA, Luminosity: LuminosityNA,
+			Seqno: 255, Calibrating: true,
+		},
+	},
 }
 
 func TestUnmarshall(t *testing.T) {

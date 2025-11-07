@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/jtaimisto/bluewalker/hci"
-	"gitlab.com/jtaimisto/bluewalker/ruuvi"
+	"github.com/graipher/bluewalker/hci"
+	"github.com/graipher/bluewalker/ruuvi"
 )
 
 var path string
